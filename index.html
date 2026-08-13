@@ -396,6 +396,7 @@
     display: flex;
     align-items: center;
   }
+  .subdiv-btn { font-size: 34px; }
 
   /* ---- Popover for time signature ---- */
   .popover-backdrop {
@@ -1238,9 +1239,13 @@ function App() {
               + (state === 2 ? " muted-beat" : "")
               + (currentBeat === i && state !== 2 ? " lit" : "");
             // 서브디비전 오프셋(0=메인 박 포함)을 그대로 점으로 표시.
-            // 첫 번째 점(오프셋 0)은 항상 큰 원의 중심과 같은 x축에 위치함
-            const dotFractions = SUBDIVISIONS[subdivision].offsets;
-            const showDots = dotFractions.length > 1;
+            // 첫 번째 점(오프셋 0)은 항상 큰 원의 중심과 같은 x축에 위치함.
+            // 셔플은 실제 소리는 2박만 나지만(0, 2/3), 3연음 배열(0, 1/3, 2/3)로 시각화하고
+            // 가운데(1/3)는 소리 없는 빈 점으로 표시해서 "3연음 중 1,3번째만 연주"함을 보여줌
+            const dotSpecs = subdivision === "tripletSwing"
+              ? [{ f: 0, subIdx: 0 }, { f: 1 / 3, subIdx: null }, { f: 2 / 3, subIdx: 1 }]
+              : SUBDIVISIONS[subdivision].offsets.map((f, idx) => ({ f, subIdx: idx }));
+            const showDots = dotSpecs.length > 1;
             return (
               <div key={i} className="beat-col-precise">
                 <div className="circle-slot">
@@ -1251,13 +1256,14 @@ function App() {
                 </div>
                 {showDots && (
                   <div className="subdots-slot">
-                    {dotFractions.map((f, subIdx) => {
-                      const isLit = state !== 2 && currentSub.beat === i && currentSub.sub === subIdx;
+                    {dotSpecs.map((d, k) => {
+                      const isSilentDot = d.subIdx === null;
+                      const isLit = !isSilentDot && state !== 2 && currentSub.beat === i && currentSub.sub === d.subIdx;
                       return (
                         <div
-                          key={subIdx}
-                          className={"sub-dot" + (isLit ? " lit" : "") + (state === 2 ? " muted" : "")}
-                          style={{ left: (f * 100) + "%" }}
+                          key={k}
+                          className={"sub-dot" + (isLit ? " lit" : "") + ((state === 2 || isSilentDot) ? " muted" : "")}
+                          style={{ left: (d.f * 100) + "%" }}
                         ></div>
                       );
                     })}
@@ -1361,7 +1367,7 @@ function App() {
           <div className="main-card-row">
             <button className="timesig-btn" onClick={() => setShowSigPicker(true)}>{timeSig}</button>
             <button className="subdiv-btn" onClick={() => setShowSubdivPicker(true)}>
-              <NoteSymbol cfg={SUBDIVISIONS[subdivision]} size="1.2em" />
+              <NoteSymbol cfg={SUBDIVISIONS[subdivision]} size="1.5em" />
             </button>
           </div>
         </div>

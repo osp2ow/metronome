@@ -327,6 +327,19 @@
   }
   .pm-btn:active { background: #444; }
 
+  .speed-cluster { display: flex; align-items: center; gap: 6px; }
+  .speed-extra { display: none; }
+  .speed-btn {
+    background: var(--btn-bg);
+    color: var(--text-main);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .speed-btn:active { background: #444; }
+
   .play-btn-lg {
     width: 138px;
     height: 138px;
@@ -575,8 +588,9 @@
     .topbar { padding: 22px 28px; gap: 18px; }
     .icon-btn { width: 40px; height: 40px; }
     .icon-btn svg { width: 26px; height: 26px; }
-    .title { font-size: 15px; letter-spacing: 2px; }
-    .volume-track { flex: 0 0 70px; width: 70px; }
+    .title { font-size: 22px; letter-spacing: 3px; flex: 1; text-align: center; }
+    .volume-track { flex: 0 0 140px; width: 140px; height: 30px; }
+    .volume-track .track-bg { height: 11px; }
     .metronome-body { overflow-y: auto; }
     .beat-display {
       flex: 1 1 0;
@@ -589,6 +603,17 @@
     .controls-row { flex: 1.6 1 0; min-height: 0; }
     .controls-row .main-card,
     .controls-row .automator-card { overflow-y: auto; }
+
+    /* BPM 숫자 옆 -/+ 는 그대로 두고, 그 바깥쪽 빈 공간에 -5/-10, +5/+10 배치 */
+    .controls-row .speed-extra { display: inline-flex; }
+    .controls-row .speed-btn {
+      padding: clamp(6px, 1.2vh, 10px) clamp(10px, 1.6vw, 16px);
+      font-size: clamp(12px, 1.6vh, 15px);
+    }
+    .controls-row .tap-text-btn { font-size: clamp(14px, 2vh, 19px); }
+    .controls-row .tap-text-btn svg { width: clamp(30px, 5vh, 48px); height: clamp(30px, 5vh, 48px); }
+    .controls-row .timesig-btn { font-size: clamp(20px, 3vh, 30px); }
+    .controls-row .subdiv-btn { font-size: clamp(20px, 3vh, 30px); }
   }
 </style>
 </head>
@@ -1226,13 +1251,17 @@ function App() {
         </div>
 
         <div className="main-card">
-          <div className="main-card-row">
-            <button className="pm-btn"
-              onPointerDown={() => startHold(-10)}
-              onPointerUp={endHold}
-              onPointerLeave={endHold}
-              onClick={() => handlePmClick(-1)}
-            >−</button>
+          <div className="main-card-row bpm-top-row">
+            <div className="speed-cluster">
+              <button className="speed-btn speed-extra" onClick={() => changeBpm(-10)}>−10</button>
+              <button className="speed-btn speed-extra" onClick={() => changeBpm(-5)}>−5</button>
+              <button className="pm-btn"
+                onPointerDown={() => startHold(-10)}
+                onPointerUp={endHold}
+                onPointerLeave={endHold}
+                onClick={() => handlePmClick(-1)}
+              >−</button>
+            </div>
             <div className="bpm-center">
               <span className="note-symbol">♩=</span>
               <div
@@ -1243,12 +1272,16 @@ function App() {
               >{bpm}</div>
               <span className="bpm-unit">BPM</span>
             </div>
-            <button className="pm-btn"
-              onPointerDown={() => startHold(10)}
-              onPointerUp={endHold}
-              onPointerLeave={endHold}
-              onClick={() => handlePmClick(1)}
-            >+</button>
+            <div className="speed-cluster">
+              <button className="pm-btn"
+                onPointerDown={() => startHold(10)}
+                onPointerUp={endHold}
+                onPointerLeave={endHold}
+                onClick={() => handlePmClick(1)}
+              >+</button>
+              <button className="speed-btn speed-extra" onClick={() => changeBpm(5)}>+5</button>
+              <button className="speed-btn speed-extra" onClick={() => changeBpm(10)}>+10</button>
+            </div>
           </div>
 
           <div className="main-card-divider"></div>

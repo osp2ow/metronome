@@ -51,14 +51,14 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 16px;
+    padding: 18px 16px;
     background: var(--bg-panel);
     border-bottom: 2px solid var(--accent);
   }
 
   .icon-btn {
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     background: transparent;
     border: none;
@@ -70,7 +70,7 @@
     flex-shrink: 0;
   }
   .icon-btn.active { color: var(--accent); }
-  .icon-btn svg { width: 18px; height: 18px; }
+  .icon-btn svg { width: 22px; height: 22px; }
 
   .volume-track {
     flex: 1;
@@ -120,8 +120,8 @@
   }
 
   .beat-dot {
-    width: clamp(30px, 9vw, 52px);
-    height: clamp(30px, 9vw, 52px);
+    width: clamp(40px, 12vw, 68px);
+    height: clamp(40px, 12vw, 68px);
     border-radius: 50%;
     background: var(--accent-dim);
     transition: background 0.05s linear, transform 0.05s linear;
@@ -173,7 +173,7 @@
     border: 1px solid #4a4a4a;
     border-radius: 14px;
     margin: 12px 16px 0 16px;
-    padding: 12px 16px;
+    padding: 20px 18px;
     flex-shrink: 0;
   }
   .automator-row-btn {
@@ -256,7 +256,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 24px 22px;
     min-width: 0;
     flex-wrap: wrap;
     row-gap: 10px;
@@ -268,7 +268,7 @@
   .bpm-center { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 
   .bpm-number {
-    font-size: clamp(40px, 10vw, 64px);
+    font-size: clamp(46px, 11vw, 72px);
     font-weight: 300;
     line-height: 1;
     color: var(--text-main);
@@ -280,13 +280,13 @@
   .bpm-unit { font-size: 13px; color: var(--text-dim); }
 
   .pm-btn {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     border: none;
     background: var(--btn-bg);
     color: var(--text-main);
-    font-size: 22px;
+    font-size: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -296,8 +296,8 @@
   .pm-btn:active { background: #444; }
 
   .play-btn-lg {
-    width: 118px;
-    height: 118px;
+    width: 138px;
+    height: 138px;
     border-radius: 50%;
     border: 2px solid #666;
     background: transparent;
@@ -309,7 +309,7 @@
     justify-self: center;
   }
   .play-btn-lg.playing { background: var(--accent); border-color: var(--accent); }
-  .play-btn-lg svg { width: 40px; height: 40px; }
+  .play-btn-lg svg { width: 46px; height: 46px; }
 
   .tap-text-btn {
     background: none;

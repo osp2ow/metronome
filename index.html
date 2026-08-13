@@ -40,9 +40,15 @@
     .icon-btn svg { width: 26px; height: 26px; }
     .title { font-size: 15px; letter-spacing: 2px; }
     .volume-track { flex: 0 0 70px; width: 70px; }
-    .beat-display { justify-content: space-evenly; gap: 32px; padding: clamp(24px, 4vh, 50px) 80px; }
+    .beat-display {
+      flex: 0 0 42vh;
+      justify-content: space-evenly;
+      gap: 32px;
+      padding: clamp(24px, 4vh, 50px) 80px;
+    }
     .beat-dot { width: clamp(56px, 6vw, 92px); height: clamp(56px, 6vw, 92px); }
     .sub-dot { width: 13px; height: 13px; }
+    .controls-row { flex: 1; }
   }
 
   .metronome-body {
@@ -253,8 +259,11 @@
       flex: 1;
       min-width: 0;
       margin: 16px 0 0 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
     }
-    .controls-row .main-card-row { padding: 34px 40px; }
+    .controls-row .main-card-row { padding: 24px 40px; }
     .controls-row .note-symbol { font-size: 26px; }
     .controls-row .bpm-number { font-size: clamp(70px, 6vw, 112px); }
     .controls-row .bpm-unit { font-size: 16px; }

@@ -216,55 +216,62 @@
     .controls-row {
       flex-direction: row;
       align-items: stretch;
-      gap: 24px;
+      gap: 16px;
       padding: 0 32px;
       max-width: 1500px;
       margin: 0 auto;
       width: 100%;
     }
     .controls-row .automator-card {
-      flex: 0 0 300px;
+      flex: 0 0 260px;
       flex-direction: column;
       align-items: stretch;
       justify-content: flex-start;
-      gap: 18px;
-      margin: 16px 0 0 0;
-      padding: 28px 24px;
+      gap: 12px;
+      margin: 10px 0 0 0;
+      padding: clamp(10px, 3vh, 28px) 22px;
     }
-    .controls-row .automator-label { font-size: 15px; }
-    .controls-row .automator-value { font-size: 20px; }
+    .controls-row .automator-label { font-size: 14px; }
+    .controls-row .automator-value { font-size: 18px; }
     .controls-row .automator-row-btn {
       flex: 0 0 auto;
       flex-direction: column;
       align-items: flex-start;
-      gap: 12px;
+      gap: 10px;
     }
     .controls-row .automator-reset {
       align-self: flex-end;
       margin-top: auto;
       padding: 0;
     }
-    .controls-row .automator-reset svg { width: 26px; height: 26px; }
+    .controls-row .automator-reset svg { width: 24px; height: 24px; }
     .controls-row .main-card {
       flex: 1;
       min-width: 0;
-      margin: 16px 0 0 0;
+      margin: 10px 0 0 0;
       display: flex;
       flex-direction: column;
       justify-content: space-evenly;
     }
-    .controls-row .main-card-row { padding: 24px 40px; }
-    .controls-row .note-symbol { font-size: 26px; }
-    .controls-row .bpm-number { font-size: clamp(70px, 6vw, 112px); }
-    .controls-row .bpm-unit { font-size: 16px; }
-    .controls-row .pm-btn { width: 58px; height: 58px; font-size: 28px; }
-    .controls-row .play-btn-lg { width: 168px; height: 168px; }
-    .controls-row .play-btn-lg svg { width: 56px; height: 56px; }
-    .controls-row .tap-text-btn { font-size: 18px; }
-    .controls-row .tap-text-btn svg { width: 44px; height: 44px; }
-    .controls-row .timesig-btn { font-size: 26px; }
+    .controls-row .main-card-row { padding: clamp(8px, 2.5vh, 22px) 36px; }
+    .controls-row .note-symbol { font-size: clamp(16px, 2.5vh, 24px); }
+    .controls-row .bpm-number { font-size: clamp(40px, min(9vh, 6vw), 100px); }
+    .controls-row .bpm-unit { font-size: 15px; }
+    .controls-row .pm-btn {
+      width: clamp(36px, 5vh, 54px);
+      height: clamp(36px, 5vh, 54px);
+      font-size: clamp(18px, 2.5vh, 26px);
+    }
+    .controls-row .play-btn-lg {
+      width: clamp(70px, min(15vh, 12vw), 150px);
+      height: clamp(70px, min(15vh, 12vw), 150px);
+    }
+    .controls-row .play-btn-lg svg { width: clamp(24px, 5vh, 50px); height: clamp(24px, 5vh, 50px); }
+    .controls-row .tap-text-btn { font-size: clamp(13px, 2vh, 17px); }
+    .controls-row .tap-text-btn svg { width: clamp(24px, 4vh, 40px); height: clamp(24px, 4vh, 40px); }
+    .controls-row .timesig-btn { font-size: clamp(16px, 2.5vh, 24px); }
     .controls-row .subdiv-btn svg,
-    .controls-row .subdiv-btn { font-size: 26px; }
+    .controls-row .subdiv-btn { font-size: clamp(16px, 2.5vh, 24px); }
   }
 
   /* ---- Main card (BPM / play / time sig) ---- */
@@ -576,7 +583,7 @@
       min-height: 0;
       padding: clamp(16px, 3vh, 40px) 80px;
     }
-    .beat-dot { width: clamp(56px, 6vw, 92px); height: clamp(56px, 6vw, 92px); }
+    .beat-dot { width: clamp(40px, min(10vh, 6vw), 92px); height: clamp(40px, min(10vh, 6vw), 92px); }
     .subdots-slot { width: 150px; height: 17px; }
     .sub-dot { width: 13px; height: 13px; }
     .controls-row { flex: 1 1 0; min-height: 0; overflow-y: auto; }

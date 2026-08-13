@@ -152,14 +152,14 @@
   .subdots-slot {
     position: relative;
     margin-left: 50%;
-    width: 100px;
-    height: 13px;
+    width: 110px;
+    height: 15px;
   }
   .sub-dot {
     position: absolute;
     top: 0;
-    width: 9px;
-    height: 9px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     background: var(--accent-dim);
     opacity: 0.5;
@@ -331,9 +331,9 @@
   }
   .pm-btn:active { background: #444; }
 
-  .speed-cluster { display: flex; align-items: center; gap: 6px; }
+  .row1-mobile { display: flex; align-items: center; justify-content: space-between; width: 100%; }
   .bpm-cluster-desktop { display: none; }
-  .speed-extra { display: none; }
+  .row1-desktop-quick { display: none; }
   .speed-btn {
     background: var(--btn-bg);
     color: var(--text-main);
@@ -603,21 +603,26 @@
       padding: clamp(10px, 2.5vh, 40px) 80px;
     }
     .beat-dot { width: clamp(36px, min(9vh, 6vw), 92px); height: clamp(36px, min(9vh, 6vw), 92px); }
-    .subdots-slot { width: 150px; height: 17px; }
-    .sub-dot { width: 13px; height: 13px; }
+    .subdots-slot { width: 180px; height: 20px; }
+    .sub-dot { width: 16px; height: 16px; }
     .controls-row { flex: 1.6 1 0; min-height: 0; }
     .controls-row .main-card,
     .controls-row .automator-card { overflow-y: auto; }
 
-    /* 재생 버튼 왼쪽에 BPM 숫자 + -/+ 클러스터를 통째로 배치, 위쪽의 원래 줄은 숨김 */
-    .controls-row .mobile-only-row { display: none; }
+    /* 위쪽 줄: -10/-5/+5/+10 빠른 조절만 표시. 재생 버튼 왼쪽: 숫자 + 바로 옆 -/+ */
+    .controls-row .row1-mobile { display: none; }
+    .controls-row .row1-desktop-quick {
+      display: flex;
+      justify-content: center;
+      gap: clamp(10px, 1.5vw, 20px);
+      width: 100%;
+    }
     .controls-row .bpm-cluster-desktop {
       display: flex;
       align-items: center;
       gap: clamp(6px, 1vw, 14px);
       justify-self: start;
     }
-    .controls-row .speed-extra { display: inline-flex; }
     .controls-row .speed-btn {
       padding: clamp(6px, 1.2vh, 10px) clamp(10px, 1.6vw, 16px);
       font-size: clamp(12px, 1.6vh, 15px);
@@ -897,7 +902,7 @@ function App() {
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.frequency.value = isAccentClick ? 1200 : 900;
-      gain.gain.setValueAtTime(vol * (isAccentClick ? 1 : 0.6), time);
+      gain.gain.setValueAtTime(vol * (isAccentClick ? 1.4 : 0.85), time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
       osc.start(time);
       osc.stop(time + 0.1);
@@ -1265,53 +1270,14 @@ function App() {
         </div>
 
         <div className="main-card">
-          <div className="main-card-row bpm-top-row mobile-only-row">
-            <div className="speed-cluster">
-              <button className="speed-btn speed-extra" onClick={() => changeBpm(-10)}>−10</button>
-              <button className="speed-btn speed-extra" onClick={() => changeBpm(-5)}>−5</button>
+          <div className="main-card-row bpm-top-row">
+            <div className="row1-mobile">
               <button className="pm-btn"
                 onPointerDown={() => startHold(-10)}
                 onPointerUp={endHold}
                 onPointerLeave={endHold}
                 onClick={() => handlePmClick(-1)}
               >−</button>
-            </div>
-            <div className="bpm-center">
-              <span className="note-symbol">♩=</span>
-              <div
-                className="bpm-number"
-                onPointerDown={onBpmPointerDown}
-                onPointerMove={onBpmPointerMove}
-                onPointerUp={onBpmPointerUp}
-              >{bpm}</div>
-              <span className="bpm-unit">BPM</span>
-            </div>
-            <div className="speed-cluster">
-              <button className="pm-btn"
-                onPointerDown={() => startHold(10)}
-                onPointerUp={endHold}
-                onPointerLeave={endHold}
-                onClick={() => handlePmClick(1)}
-              >+</button>
-              <button className="speed-btn speed-extra" onClick={() => changeBpm(5)}>+5</button>
-              <button className="speed-btn speed-extra" onClick={() => changeBpm(10)}>+10</button>
-            </div>
-          </div>
-
-          <div className="main-card-divider mobile-only-row"></div>
-
-          <div className="main-card-row playrow">
-            <div className="bpm-cluster-desktop">
-              <div className="speed-cluster">
-                <button className="speed-btn speed-extra" onClick={() => changeBpm(-10)}>−10</button>
-                <button className="speed-btn speed-extra" onClick={() => changeBpm(-5)}>−5</button>
-                <button className="pm-btn"
-                  onPointerDown={() => startHold(-10)}
-                  onPointerUp={endHold}
-                  onPointerLeave={endHold}
-                  onClick={() => handlePmClick(-1)}
-                >−</button>
-              </div>
               <div className="bpm-center">
                 <span className="note-symbol">♩=</span>
                 <div
@@ -1322,16 +1288,47 @@ function App() {
                 >{bpm}</div>
                 <span className="bpm-unit">BPM</span>
               </div>
-              <div className="speed-cluster">
-                <button className="pm-btn"
-                  onPointerDown={() => startHold(10)}
-                  onPointerUp={endHold}
-                  onPointerLeave={endHold}
-                  onClick={() => handlePmClick(1)}
-                >+</button>
-                <button className="speed-btn speed-extra" onClick={() => changeBpm(5)}>+5</button>
-                <button className="speed-btn speed-extra" onClick={() => changeBpm(10)}>+10</button>
+              <button className="pm-btn"
+                onPointerDown={() => startHold(10)}
+                onPointerUp={endHold}
+                onPointerLeave={endHold}
+                onClick={() => handlePmClick(1)}
+              >+</button>
+            </div>
+            <div className="row1-desktop-quick">
+              <button className="speed-btn" onClick={() => changeBpm(-10)}>−10</button>
+              <button className="speed-btn" onClick={() => changeBpm(-5)}>−5</button>
+              <button className="speed-btn" onClick={() => changeBpm(5)}>+5</button>
+              <button className="speed-btn" onClick={() => changeBpm(10)}>+10</button>
+            </div>
+          </div>
+
+          <div className="main-card-divider"></div>
+
+          <div className="main-card-row playrow">
+            <div className="bpm-cluster-desktop">
+              <button className="pm-btn"
+                onPointerDown={() => startHold(-10)}
+                onPointerUp={endHold}
+                onPointerLeave={endHold}
+                onClick={() => handlePmClick(-1)}
+              >−</button>
+              <div className="bpm-center">
+                <span className="note-symbol">♩=</span>
+                <div
+                  className="bpm-number"
+                  onPointerDown={onBpmPointerDown}
+                  onPointerMove={onBpmPointerMove}
+                  onPointerUp={onBpmPointerUp}
+                >{bpm}</div>
+                <span className="bpm-unit">BPM</span>
               </div>
+              <button className="pm-btn"
+                onPointerDown={() => startHold(10)}
+                onPointerUp={endHold}
+                onPointerLeave={endHold}
+                onClick={() => handlePmClick(1)}
+              >+</button>
             </div>
             <button className={"play-btn-lg" + (playing ? " playing" : "")} onClick={togglePlay}>
               {playing ? (

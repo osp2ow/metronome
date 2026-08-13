@@ -34,22 +34,6 @@
     background: #1c1c1c;
     position: relative;
   }
-  @media (min-width: 900px) {
-    .topbar { padding: 22px 28px; gap: 18px; }
-    .icon-btn { width: 40px; height: 40px; }
-    .icon-btn svg { width: 26px; height: 26px; }
-    .title { font-size: 15px; letter-spacing: 2px; }
-    .volume-track { flex: 0 0 70px; width: 70px; }
-    .beat-display {
-      flex: 0 0 58vh;
-      padding: clamp(24px, 4vh, 50px) 80px;
-    }
-    .beat-dot { width: clamp(56px, 6vw, 92px); height: clamp(56px, 6vw, 92px); }
-    .subdots-slot { width: 150px; height: 17px; }
-    .sub-dot { width: 13px; height: 13px; }
-    .controls-row { flex: 1; }
-  }
-
   .metronome-body {
     flex: 1;
     display: flex;
@@ -578,6 +562,23 @@
   }
   .modal-btn-cancel { background: #1c1c1c; color: var(--text-dim); }
   .modal-btn-save { background: var(--accent); color: #1c1c1c; font-weight: 700; }
+
+  /* 넓은 화면(태블릿/PC) 오버라이드 — 반드시 위 기본 규칙들 뒤에 와야 우선 적용됨 */
+  @media (min-width: 900px) {
+    .topbar { padding: 22px 28px; gap: 18px; }
+    .icon-btn { width: 40px; height: 40px; }
+    .icon-btn svg { width: 26px; height: 26px; }
+    .title { font-size: 15px; letter-spacing: 2px; }
+    .volume-track { flex: 0 0 70px; width: 70px; }
+    .beat-display {
+      flex: 0 0 58vh;
+      padding: clamp(24px, 4vh, 50px) 80px;
+    }
+    .beat-dot { width: clamp(56px, 6vw, 92px); height: clamp(56px, 6vw, 92px); }
+    .subdots-slot { width: 150px; height: 17px; }
+    .sub-dot { width: 13px; height: 13px; }
+    .controls-row { flex: 1; }
+  }
 </style>
 </head>
 <body>

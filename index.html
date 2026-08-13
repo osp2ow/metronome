@@ -42,10 +42,10 @@
     .volume-track { flex: 0 0 70px; width: 70px; }
     .beat-display {
       flex: 0 0 42vh;
-      padding: clamp(24px, 4vh, 50px) 80px clamp(24px, 4vh, 50px) 100px;
+      padding: clamp(24px, 4vh, 50px) 80px;
     }
     .beat-dot { width: clamp(56px, 6vw, 92px); height: clamp(56px, 6vw, 92px); }
-    .subdots-slot { height: 17px; }
+    .subdots-slot { width: 150px; height: 17px; }
     .sub-dot { width: 13px; height: 13px; }
     .controls-row { flex: 1; }
   }
@@ -126,8 +126,8 @@
     flex: 1;
     background: var(--bg-display);
     display: flex;
-    align-items: stretch;
-    padding: 16px 16px 16px 44px;
+    align-items: center;
+    padding: 16px;
     min-height: 100px;
   }
 
@@ -142,29 +142,29 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transform: translateX(-50%);
   }
-  .beat-dot.lit { background: var(--accent); transform: translateX(-50%) scale(1.12); box-shadow: 0 0 18px rgba(183,236,58,0.55); }
+  .beat-dot.lit { background: var(--accent); transform: scale(1.12); box-shadow: 0 0 18px rgba(183,236,58,0.55); }
   .beat-dot.lit.accent-beat { background: #d6ff5c; box-shadow: 0 0 22px rgba(214,255,92,0.75); }
   .beat-dot.muted-beat { background: transparent; border: 2px solid #444; }
-  .beat-dot.muted-beat.lit { background: transparent; box-shadow: none; transform: translateX(-50%); }
+  .beat-dot.muted-beat.lit { background: transparent; box-shadow: none; transform: none; }
 
-  /* 서브디비전 작은 점들을 큰 원 중심 사이 거리를 정확히 등분한 위치에 배치 */
+  /* 서브디비전 첫 번째 점은 항상 큰 원의 중심 바로 아래(같은 x축)에 오고,
+     나머지 점들은 그 지점부터 오른쪽으로 등분된 비율만큼 이어짐 */
   .beat-col-precise {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     gap: 12px;
   }
   .circle-slot {
-    position: relative;
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
   }
   .subdots-slot {
     position: relative;
+    margin-left: 50%;
+    width: 100px;
     height: 13px;
   }
   .sub-dot {
@@ -1168,9 +1168,10 @@ function App() {
               + (state === 0 ? " accent-beat" : "")
               + (state === 2 ? " muted-beat" : "")
               + (currentBeat === i && state !== 2 ? " lit" : "");
-            // 서브디비전 오프셋의 첫 값(0)은 메인 박(큰 원)이라 제외하고,
-            // 나머지 오프셋을 두 큰 원 사이 거리를 등분한 정확한 위치에 점으로 표시
-            const dotFractions = SUBDIVISIONS[subdivision].offsets.slice(1);
+            // 서브디비전 오프셋(0=메인 박 포함)을 그대로 점으로 표시.
+            // 첫 번째 점(오프셋 0)은 항상 큰 원의 중심과 같은 x축에 위치함
+            const dotFractions = SUBDIVISIONS[subdivision].offsets;
+            const showDots = dotFractions.length > 1;
             return (
               <div key={i} className="beat-col-precise">
                 <div className="circle-slot">
@@ -1179,14 +1180,13 @@ function App() {
                     onClick={() => setBeatPattern(prev => prev.map((v, idx) => idx === i ? (v + 1) % 3 : v))}
                   >{state === 0 && <AccentMark size="58%" />}</div>
                 </div>
-                {dotFractions.length > 0 && (
+                {showDots && (
                   <div className="subdots-slot">
-                    {dotFractions.map((f, idx) => {
-                      const subIdx = idx + 1; // offsets 배열에서의 실제 인덱스 (0=메인 박)
+                    {dotFractions.map((f, subIdx) => {
                       const isLit = state !== 2 && currentSub.beat === i && currentSub.sub === subIdx;
                       return (
                         <div
-                          key={idx}
+                          key={subIdx}
                           className={"sub-dot" + (isLit ? " lit" : "") + (state === 2 ? " muted" : "")}
                           style={{ left: (f * 100) + "%" }}
                         ></div>

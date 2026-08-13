@@ -42,11 +42,10 @@
     .volume-track { flex: 0 0 70px; width: 70px; }
     .beat-display {
       flex: 0 0 42vh;
-      justify-content: space-evenly;
-      gap: 32px;
-      padding: clamp(24px, 4vh, 50px) 80px;
+      padding: clamp(24px, 4vh, 50px) 80px clamp(24px, 4vh, 50px) 100px;
     }
     .beat-dot { width: clamp(56px, 6vw, 92px); height: clamp(56px, 6vw, 92px); }
+    .subdots-slot { height: 17px; }
     .sub-dot { width: 13px; height: 13px; }
     .controls-row { flex: 1; }
   }
@@ -127,12 +126,9 @@
     flex: 1;
     background: var(--bg-display);
     display: flex;
-    align-items: center;
-    justify-content: space-evenly;
-    gap: clamp(10px, 4vw, 28px);
-    padding: 16px;
+    align-items: stretch;
+    padding: 16px 16px 16px 44px;
     min-height: 100px;
-    flex-wrap: wrap;
   }
 
   .beat-dot {
@@ -146,39 +142,49 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transform: translateX(-50%);
   }
-  .beat-dot.lit { background: var(--accent); transform: scale(1.12); box-shadow: 0 0 18px rgba(183,236,58,0.55); }
+  .beat-dot.lit { background: var(--accent); transform: translateX(-50%) scale(1.12); box-shadow: 0 0 18px rgba(183,236,58,0.55); }
   .beat-dot.lit.accent-beat { background: #d6ff5c; box-shadow: 0 0 22px rgba(214,255,92,0.75); }
   .beat-dot.muted-beat { background: transparent; border: 2px solid #444; }
-  .beat-dot.muted-beat.lit { background: transparent; box-shadow: none; transform: none; }
+  .beat-dot.muted-beat.lit { background: transparent; box-shadow: none; transform: translateX(-50%); }
 
-  .beat-column {
+  /* 서브디비전 작은 점들을 큰 원 중심 사이 거리를 정확히 등분한 위치에 배치 */
+  .beat-col-precise {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 10px;
+    justify-content: center;
+    gap: 12px;
   }
-  .sub-dot-row {
+  .circle-slot {
+    position: relative;
     display: flex;
-    gap: 5px;
-    min-height: 10px;
+    justify-content: flex-start;
+  }
+  .subdots-slot {
+    position: relative;
+    height: 13px;
   }
   .sub-dot {
+    position: absolute;
+    top: 0;
     width: 9px;
     height: 9px;
     border-radius: 50%;
     background: var(--accent-dim);
     opacity: 0.5;
+    transform: translateX(-50%);
     transition: background 0.05s linear, transform 0.05s linear, opacity 0.05s linear;
   }
   .sub-dot.lit {
     background: var(--accent);
     opacity: 1;
-    transform: scale(1.4);
+    transform: translateX(-50%) scale(1.4);
     box-shadow: 0 0 8px rgba(183,236,58,0.65);
   }
   .sub-dot.muted { background: transparent; border: 1px solid #444; opacity: 0.4; }
-  .sub-dot-empty { background: transparent; opacity: 0; }
 
   /* ---- Automator card ---- */
   .automator-card {
@@ -1162,26 +1168,27 @@ function App() {
               + (state === 0 ? " accent-beat" : "")
               + (state === 2 ? " muted-beat" : "")
               + (currentBeat === i && state !== 2 ? " lit" : "");
-            const subCfg = SUBDIVISIONS[subdivision];
-            const gridSize = subCfg.gridSize || subCfg.offsets.length;
-            const activeSlots = subCfg.activeSlots || subCfg.offsets.map((_, idx) => idx);
-            const showSub = gridSize > 1;
+            // 서브디비전 오프셋의 첫 값(0)은 메인 박(큰 원)이라 제외하고,
+            // 나머지 오프셋을 두 큰 원 사이 거리를 등분한 정확한 위치에 점으로 표시
+            const dotFractions = SUBDIVISIONS[subdivision].offsets.slice(1);
             return (
-              <div key={i} className="beat-column">
-                <div
-                  className={cls}
-                  onClick={() => setBeatPattern(prev => prev.map((v, idx) => idx === i ? (v + 1) % 3 : v))}
-                >{state === 0 && <AccentMark size="58%" />}</div>
-                {showSub && (
-                  <div className="sub-dot-row">
-                    {Array.from({ length: gridSize }, (_, slot) => {
-                      const activeIdx = activeSlots.indexOf(slot);
-                      const isActive = activeIdx !== -1;
-                      const isLit = isActive && state !== 2 && currentSub.beat === i && currentSub.sub === activeIdx;
+              <div key={i} className="beat-col-precise">
+                <div className="circle-slot">
+                  <div
+                    className={cls}
+                    onClick={() => setBeatPattern(prev => prev.map((v, idx) => idx === i ? (v + 1) % 3 : v))}
+                  >{state === 0 && <AccentMark size="58%" />}</div>
+                </div>
+                {dotFractions.length > 0 && (
+                  <div className="subdots-slot">
+                    {dotFractions.map((f, idx) => {
+                      const subIdx = idx + 1; // offsets 배열에서의 실제 인덱스 (0=메인 박)
+                      const isLit = state !== 2 && currentSub.beat === i && currentSub.sub === subIdx;
                       return (
                         <div
-                          key={slot}
-                          className={"sub-dot" + (isActive ? "" : " sub-dot-empty") + (isLit ? " lit" : "") + (state === 2 ? " muted" : "")}
+                          key={idx}
+                          className={"sub-dot" + (isLit ? " lit" : "") + (state === 2 ? " muted" : "")}
+                          style={{ left: (f * 100) + "%" }}
                         ></div>
                       );
                     })}

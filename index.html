@@ -227,9 +227,9 @@
       flex-direction: column;
       align-items: stretch;
       justify-content: flex-start;
-      gap: 12px;
+      gap: 10px;
       margin: 10px 0 0 0;
-      padding: clamp(10px, 3vh, 28px) 22px;
+      padding: clamp(8px, 2.2vh, 28px) 22px;
     }
     .controls-row .automator-label { font-size: 14px; }
     .controls-row .automator-value { font-size: 18px; }
@@ -237,7 +237,7 @@
       flex: 0 0 auto;
       flex-direction: column;
       align-items: flex-start;
-      gap: 10px;
+      gap: 8px;
     }
     .controls-row .automator-reset {
       align-self: flex-end;
@@ -253,21 +253,21 @@
       flex-direction: column;
       justify-content: space-evenly;
     }
-    .controls-row .main-card-row { padding: clamp(8px, 2.5vh, 22px) 36px; }
-    .controls-row .note-symbol { font-size: clamp(16px, 2.5vh, 24px); }
-    .controls-row .bpm-number { font-size: clamp(40px, min(9vh, 6vw), 100px); }
-    .controls-row .bpm-unit { font-size: 15px; }
+    .controls-row .main-card-row { padding: clamp(4px, 1.6vh, 22px) 36px; }
+    .controls-row .note-symbol { font-size: clamp(14px, 2vh, 24px); }
+    .controls-row .bpm-number { font-size: clamp(36px, min(7vh, 6vw), 100px); }
+    .controls-row .bpm-unit { font-size: 14px; }
     .controls-row .pm-btn {
-      width: clamp(36px, 5vh, 54px);
-      height: clamp(36px, 5vh, 54px);
-      font-size: clamp(18px, 2.5vh, 26px);
+      width: clamp(30px, 4vh, 54px);
+      height: clamp(30px, 4vh, 54px);
+      font-size: clamp(16px, 2vh, 26px);
     }
     .controls-row .play-btn-lg {
-      width: clamp(70px, min(15vh, 12vw), 150px);
-      height: clamp(70px, min(15vh, 12vw), 150px);
+      width: clamp(56px, min(11vh, 12vw), 150px);
+      height: clamp(56px, min(11vh, 12vw), 150px);
     }
-    .controls-row .play-btn-lg svg { width: clamp(24px, 5vh, 50px); height: clamp(24px, 5vh, 50px); }
-    .controls-row .tap-text-btn { font-size: clamp(13px, 2vh, 17px); }
+    .controls-row .play-btn-lg svg { width: clamp(20px, 4vh, 50px); height: clamp(20px, 4vh, 50px); }
+    .controls-row .tap-text-btn { font-size: clamp(12px, 1.6vh, 17px); }
     .controls-row .tap-text-btn svg { width: clamp(24px, 4vh, 40px); height: clamp(24px, 4vh, 40px); }
     .controls-row .timesig-btn { font-size: clamp(16px, 2.5vh, 24px); }
     .controls-row .subdiv-btn svg,
@@ -577,16 +577,18 @@
     .icon-btn svg { width: 26px; height: 26px; }
     .title { font-size: 15px; letter-spacing: 2px; }
     .volume-track { flex: 0 0 70px; width: 70px; }
-    .metronome-body { overflow-y: hidden; }
+    .metronome-body { overflow-y: auto; }
     .beat-display {
-      flex: 1.3 1 0;
+      flex: 1 1 0;
       min-height: 0;
-      padding: clamp(16px, 3vh, 40px) 80px;
+      padding: clamp(10px, 2.5vh, 40px) 80px;
     }
-    .beat-dot { width: clamp(40px, min(10vh, 6vw), 92px); height: clamp(40px, min(10vh, 6vw), 92px); }
+    .beat-dot { width: clamp(36px, min(9vh, 6vw), 92px); height: clamp(36px, min(9vh, 6vw), 92px); }
     .subdots-slot { width: 150px; height: 17px; }
     .sub-dot { width: 13px; height: 13px; }
-    .controls-row { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+    .controls-row { flex: 1.6 1 0; min-height: 0; }
+    .controls-row .main-card,
+    .controls-row .automator-card { overflow-y: auto; }
   }
 </style>
 </head>

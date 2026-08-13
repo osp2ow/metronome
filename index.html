@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>메트로놈</title>
+<style>
+  :root {
+    --bg-panel: #3a3a3a;
+    --bg-display: #121212;
+    --accent: #b7ec3a;
+    --accent-dim: #7a9c2a;
+    --text-main: #eaeaea;
+    --text-dim: #9a9a9a;
+    --btn-bg: #2c2c2c;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #1c1c1c;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text-main);
+    overscroll-behavior: none;
+  }
+
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: #1c1c1c;
+    position: relative;
+  }
+
+  /* ---- Top bar ---- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px 12px 16px;
+    background: var(--bg-panel);
+    border-bottom: 2px solid var(--accent);
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .icon-btn.active { color: var(--accent); }
+  .icon-btn svg { width: 20px; height: 20px; }
+
+  .volume-track {
+    flex: 1;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+  }
+  .volume-track .track-bg {
+    position: absolute;
+    left: 0; right: 0; top: 50%;
+    height: 8px;
+    transform: translateY(-50%);
+    background: #222;
+    border-radius: 2px;
+    clip-path: polygon(0 60%, 100% 10%, 100% 90%, 0 100%);
+    overflow: hidden;
+  }
+  .volume-track .track-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: var(--accent);
+  }
+
+  .title {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin: 0 4px;
+  }
+
+  /* ---- Beat display ---- */
+  .beat-display {
+    flex: 1;
+    background: var(--bg-display);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(16px, 6vw, 40px);
+    padding: 10px 16px;
+    min-height: 140px;
+    flex-wrap: wrap;
+  }
+
+  .beat-dot {
+    width: clamp(30px, 9vw, 52px);
+    height: clamp(30px, 9vw, 52px);
+    border-radius: 50%;
+    background: var(--accent-dim);
+    transition: background 0.05s linear, transform 0.05s linear;
+    flex-shrink: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .beat-dot.lit { background: var(--accent); transform: scale(1.12); box-shadow: 0 0 18px rgba(183,236,58,0.55); }
+  .beat-dot.lit.accent-beat { background: #d6ff5c; box-shadow: 0 0 22px rgba(214,255,92,0.75); }
+  .beat-dot.muted-beat { background: transparent; border: 2px solid #444; }
+  .beat-dot.muted-beat.lit { background: transparent; box-shadow: none; transform: none; }
+
+  .beat-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .sub-dot-row {
+    display: flex;
+    gap: 5px;
+    min-height: 10px;
+  }
+  .sub-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    opacity: 0.5;
+    transition: background 0.05s linear, transform 0.05s linear, opacity 0.05s linear;
+  }
+  .sub-dot.lit {
+    background: var(--accent);
+    opacity: 1;
+    transform: scale(1.4);
+    box-shadow: 0 0 8px rgba(183,236,58,0.65);
+  }
+  .sub-dot.muted { background: transparent; border: 1px solid #444; opacity: 0.4; }
+  .sub-dot-empty { background: transparent; opacity: 0; }
+
+  /* ---- Automator card ---- */
+  .automator-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-panel);
+    border: 1px solid #4a4a4a;
+    border-radius: 14px;
+    margin: 12px 16px 0 16px;
+    padding: 12px 16px;
+    flex-shrink: 0;
+  }
+  .automator-row-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    color: var(--text-main);
+    padding: 4px 0;
+  }
+  .automator-label { font-size: 12px; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; }
+  .automator-value { font-size: 15px; color: var(--text-dim); }
+  .automator-value.active { color: var(--accent); font-weight: 700; }
+  .automator-reset {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 0 0 0 12px;
+    display: flex;
+    align-items: center;
+  }
+  .automator-reset svg { width: 20px; height: 20px; }
+
+  /* ---- Main card (BPM / play / time sig) ---- */
+  .main-card {
+    background: var(--bg-panel);
+    margin: 12px 16px 0 16px;
+    border-radius: 14px;
+    border: 1px solid #4a4a4a;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .main-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+  }
+  .main-card-divider { height: 1px; background: #4a4a4a; margin: 0 20px; }
+
+  .note-symbol { font-size: 20px; color: var(--text-dim); }
+
+  .bpm-center { display: flex; align-items: baseline; gap: 8px; }
+
+  .bpm-number {
+    font-size: clamp(46px, 14vw, 64px);
+    font-weight: 300;
+    line-height: 1;
+    color: var(--text-main);
+    letter-spacing: -1px;
+    cursor: ns-resize;
+    touch-action: none;
+  }
+
+  .bpm-unit { font-size: 13px; color: var(--text-dim); }
+
+  .pm-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--btn-bg);
+    color: var(--text-main);
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .pm-btn:active { background: #444; }
+
+  .play-btn-lg {
+    width: 118px;
+    height: 118px;
+    border-radius: 50%;
+    border: 2px solid #666;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    justify-self: center;
+  }
+  .play-btn-lg.playing { background: var(--accent); border-color: var(--accent); }
+  .play-btn-lg svg { width: 40px; height: 40px; }
+
+  .tap-text-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 14px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    justify-self: end;
+  }
+  .tap-text-btn svg { width: 34px; height: 34px; }
+
+  .playrow {
+    display: grid !important;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+  }
+
+  .timesig-btn, .subdiv-btn {
+    background: none;
+    border: none;
+    color: var(--text-main);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ---- Popover for time signature ---- */
+  .popover-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .popover {
+    background: var(--bg-panel);
+    border-radius: 14px;
+    padding: 20px;
+    width: 260px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .popover h3 { margin: 0 0 12px 0; font-size: 14px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+  .sig-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .sig-opt {
+    background: var(--btn-bg);
+    border: none;
+    color: var(--text-main);
+    padding: 10px 0;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .sig-opt.selected { background: var(--accent); color: #1c1c1c; font-weight: 700; }
+
+  .sound-grid { display: flex; flex-direction: column; gap: 8px; }
+  .sound-opt {
+    background: var(--btn-bg);
+    border: none;
+    color: var(--text-main);
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .sound-opt.selected { background: var(--accent); color: #1c1c1c; font-weight: 700; }
+
+  .subdiv-opt { display: flex; align-items: center; gap: 14px; }
+  .subdiv-symbol { font-size: 24px; width: 34px; text-align: center; flex-shrink: 0; }
+
+  .close-hint { text-align: center; margin-top: 14px; font-size: 12px; color: var(--text-dim); }
+
+  /* ---- Song list / setlists ---- */
+  .list-screen {
+    flex: 1;
+    background: var(--bg-display);
+    overflow-y: auto;
+    padding: 14px 16px 24px 16px;
+  }
+  .list-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .list-back-btn {
+    background: none;
+    border: none;
+    color: var(--text-main);
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+  }
+  .list-back-btn svg { width: 22px; height: 22px; }
+  .list-title { font-size: 18px; font-weight: 700; flex: 1; }
+  .list-item {
+    background: var(--btn-bg);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+  }
+  .list-item-main { display: flex; flex-direction: column; gap: 3px; }
+  .list-item-title { font-size: 16px; color: var(--text-main); }
+  .list-item-sub { font-size: 13px; color: var(--text-dim); }
+  .list-item-del {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    flex-shrink: 0;
+  }
+  .list-item-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .list-item-pin {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 4px 6px;
+    display: flex;
+    align-items: center;
+  }
+  .list-item-pin.active { color: var(--accent); }
+  .list-item-pin svg { width: 19px; height: 19px; }
+  .list-item.is-home { border: 1px solid var(--accent); }
+
+  /* ---- Home song strip (활성화된 세트리스트) ---- */
+  .home-song-strip {
+    padding: 10px 16px 6px 16px;
+    background: var(--bg-panel);
+    flex-shrink: 0;
+    border-bottom: 1px solid #2c2c2c;
+  }
+  .home-song-strip-title {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .home-song-strip-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .home-song-chip {
+    flex-shrink: 0;
+    background: var(--btn-bg);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 8px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    cursor: pointer;
+    min-width: 92px;
+  }
+  .home-song-chip.active { border-color: var(--accent); background: #2a3a12; }
+  .home-song-chip-title { font-size: 13px; color: var(--text-main); white-space: nowrap; }
+  .home-song-chip-sub { font-size: 11px; color: var(--text-dim); }
+  .list-empty {
+    color: var(--text-dim);
+    font-size: 14px;
+    text-align: center;
+    padding: 40px 10px;
+  }
+  .add-row-btn {
+    width: 100%;
+    background: none;
+    border: 2px dashed #4a4a4a;
+    color: var(--text-dim);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 15px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .field-label { font-size: 12px; color: var(--text-dim); margin: 10px 0 4px 0; }
+  .field-input {
+    background: #1c1c1c;
+    border: 1px solid #4a4a4a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-main);
+    font-size: 15px;
+    width: 100%;
+  }
+  .field-select-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .field-select-row button {
+    background: #1c1c1c;
+    border: 1px solid #4a4a4a;
+    border-radius: 6px;
+    color: var(--text-main);
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .field-select-row button.selected { background: var(--accent); color: #1c1c1c; border-color: var(--accent); font-weight: 700; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-actions button {
+    flex: 1;
+    padding: 11px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .modal-btn-cancel { background: #1c1c1c; color: var(--text-dim); }
+  .modal-btn-save { background: var(--accent); color: #1c1c1c; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDgHV0yjHAyhe5ZwdGIqt7tgE9C9CGVri8",
+    authDomain: "metronome-3665c.firebaseapp.com",
+    projectId: "metronome-3665c",
+    storageBucket: "metronome-3665c.firebasestorage.app",
+    messagingSenderId: "734105235640",
+    appId: "1:734105235640:web:64683c857ccb646600c44d"
+  };
+  firebase.initializeApp(firebaseConfig);
+  window.__db = firebase.firestore();
+</script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useCallback } = React;
+
+const SOUNDS = {
+  click: "클릭",
+  wood: "우드블록",
+  cowbell: "카우벨",
+  beep: "비프",
+  voice: "보이스",
+};
+
+const SILENT_AUDIO_SRC = "data:audio/wav;base64,UklGRmQfAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUAfAAABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAAEAAQABAA==";
+// 아이폰 무음(벨소리) 스위치가 켜져 있어도 소리가 나도록, 무음 오디오를 계속 재생시켜서
+// 페이지의 오디오 세션을 '재생' 카테고리로 유지시키는 트릭 (드럼코치 앱과 동일한 방식)
+function unlockSilentAudio() {
+  try {
+    if (!window.__metroSilentAudio) {
+      const a = new Audio(SILENT_AUDIO_SRC);
+      a.loop = true;
+      a.volume = 0.01;
+      window.__metroSilentAudio = a;
+    }
+    window.__metroSilentAudio.play().catch(() => {});
+  } catch (e) {}
+}
+
+const NUMBER_WORDS = ["one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"];
+
+const SUBDIVISIONS = {
+  quarter: { label: "4분음표", type: "notegroup", count: 1, doubleBeam: false, skipIndices: [], showTriplet: false, offsets: [0], gridSize: 1, activeSlots: [0] },
+  eighth: { label: "8분음표", type: "notegroup", count: 2, doubleBeam: false, skipIndices: [], showTriplet: false, offsets: [0, 0.5], gridSize: 2, activeSlots: [0, 1] },
+  sixteenth: { label: "16분음표", type: "notegroup", count: 4, doubleBeam: true, skipIndices: [], showTriplet: false, offsets: [0, 0.25, 0.5, 0.75], gridSize: 4, activeSlots: [0, 1, 2, 3] },
+  triplet: { label: "3연음", type: "notegroup", count: 3, doubleBeam: false, skipIndices: [], showTriplet: true, offsets: [0, 1/3, 2/3], gridSize: 3, activeSlots: [0, 1, 2] },
+  tripletSwing: { label: "셔플", type: "notegroup", count: 3, doubleBeam: false, skipIndices: [1], showTriplet: true, offsets: [0, 2/3], gridSize: 3, activeSlots: [0, 2] },
+};
+
+const TIME_SIGS = ["2/4","3/4","4/4","5/4","6/8","7/8","9/8","12/8"];
+
+function beatsForSig(sig) {
+  const [num] = sig.split("/").map(Number);
+  return num;
+}
+
+function defaultBeatPattern(beats) {
+  return Array.from({ length: beats }, (_, i) => (i === 0 ? 0 : 1));
+}
+
+// 통일된 스타일의 음표 글리프 (분음표 머리/기둥/빔 비율을 일정하게 맞춰 그림)
+const NOTE_HEAD_RX = 6.8;
+const NOTE_HEAD_RY = 4.7;
+const NOTE_HEAD_ROTATE = -16;
+const NOTE_STEM_OFFSET = 5.8;
+const NOTE_SPACING = 25;
+const NOTE_HEAD_Y = 35;
+const NOTE_BEAM_Y = 10;
+const NOTE_BEAM_GAP = 6.4;
+const NOTE_BEAM_HEIGHT = 3.6;
+
+function NoteGroupGlyph({ count, doubleBeam, skipIndices, showTriplet, size }) {
+  const s = size || "1em";
+  const skip = skipIndices || [];
+  const xs = Array.from({ length: count }, (_, i) => 9 + i * NOTE_SPACING);
+  const stemXs = xs.map(x => x + NOTE_STEM_OFFSET);
+  const beamX1 = stemXs[0];
+  const beamX2 = stemXs[stemXs.length - 1];
+  const viewW = beamX2 + 11;
+  const showBeam = count > 1;
+
+  return (
+    <svg viewBox={`0 0 ${viewW} 44`} width={s} height={s} style={{ verticalAlign: "middle", overflow: "visible" }}>
+      {showTriplet && (
+        <text x={(beamX1 + beamX2) / 2} y={NOTE_BEAM_Y - 3} fontSize="13" fontStyle="italic" fontFamily="Georgia, 'Times New Roman', serif" textAnchor="middle" fill="currentColor">3</text>
+      )}
+      {showBeam && (
+        <rect x={beamX1 - 1.3} y={NOTE_BEAM_Y} width={beamX2 - beamX1 + 2.6} height={NOTE_BEAM_HEIGHT} rx="1" fill="currentColor" />
+      )}
+      {doubleBeam && (
+        <rect x={beamX1 - 1.3} y={NOTE_BEAM_Y + NOTE_BEAM_GAP} width={beamX2 - beamX1 + 2.6} height={NOTE_BEAM_HEIGHT} rx="1" fill="currentColor" />
+      )}
+      {xs.map((x, i) => !skip.includes(i) && (
+        <React.Fragment key={i}>
+          <line
+            x1={stemXs[i]} y1={showBeam ? NOTE_BEAM_Y : 9}
+            x2={stemXs[i]} y2={NOTE_HEAD_Y}
+            stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+          />
+          <ellipse
+            cx={x} cy={NOTE_HEAD_Y} rx={NOTE_HEAD_RX} ry={NOTE_HEAD_RY}
+            transform={`rotate(${NOTE_HEAD_ROTATE} ${x} ${NOTE_HEAD_Y})`}
+            fill="currentColor"
+          />
+        </React.Fragment>
+      ))}
+    </svg>
+  );
+}
+
+function AccentMark({ size }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block" }}>
+      <path d="M8 6.5 L17 12 L8 17.5" fill="none" stroke="#16240a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function NoteSymbol({ cfg, size }) {
+  if (cfg.type === "notegroup") {
+    return (
+      <NoteGroupGlyph
+        count={cfg.count}
+        doubleBeam={cfg.doubleBeam}
+        skipIndices={cfg.skipIndices}
+        showTriplet={cfg.showTriplet}
+        size={size}
+      />
+    );
+  }
+  return (
+    <span style={{ fontSize: size || "inherit" }}>{cfg.symbol}</span>
+  );
+}
+
+// TTS 엔진 시작 지연(대략 80~120ms) 보정을 위해 살짝 앞당겨 예약하고,
+// 이전 발화가 아직 끝나지 않았을 때만 cancel() 해서 불필요한 리셋 지연을 줄임
+const VOICE_LEAD_MS = 90;
+function speakCount(word, delayMs, vol) {
+  if (!window.speechSynthesis) return;
+  const adjustedDelay = Math.max(0, delayMs - VOICE_LEAD_MS);
+  setTimeout(() => {
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      window.speechSynthesis.cancel();
+    }
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.lang = "en-US";
+    utter.rate = 1.15;
+    utter.pitch = 1.3;
+    utter.volume = Math.max(0, Math.min(1, vol));
+    const voices = window.speechSynthesis.getVoices();
+    const preferredNames = ["Samantha","Google US English","Zira","Female","Victoria","Karen","Moira","Tessa","Susan"];
+    let voice = voices.find(v => preferredNames.some(n => v.name.includes(n)));
+    if (!voice) voice = voices.find(v => v.lang && v.lang.startsWith("en"));
+    if (voice) utter.voice = voice;
+    window.speechSynthesis.speak(utter);
+  }, adjustedDelay);
+}
+
+function App() {
+  const [bpm, setBpm] = useState(105);
+  const [playing, setPlaying] = useState(false);
+  const [timeSig, setTimeSig] = useState("4/4");
+  const [sound, setSound] = useState("click");
+  const [subdivision, setSubdivision] = useState("quarter");
+  const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(0.8);
+  const [currentBeat, setCurrentBeat] = useState(-1);
+  const [currentSub, setCurrentSub] = useState({ beat: -1, sub: -1 });
+  const [showSigPicker, setShowSigPicker] = useState(false);
+  const [showSoundPicker, setShowSoundPicker] = useState(false);
+  const [showSubdivPicker, setShowSubdivPicker] = useState(false);
+  const [beatPattern, setBeatPattern] = useState(() => defaultBeatPattern(4));
+
+  // 노래 목록 (세트리스트 > 노래 > BPM/박자표 불러오기)
+  const [view, setView] = useState("metronome"); // metronome | setlists | songs
+  const [setlists, setSetlists] = useState([]);
+  const [activeSetlistId, setActiveSetlistId] = useState(null);
+  const [showAddSetlist, setShowAddSetlist] = useState(false);
+  const [newSetlistName, setNewSetlistName] = useState("");
+  const [showAddSong, setShowAddSong] = useState(false);
+  const [newSongTitle, setNewSongTitle] = useState("");
+  const [newSongBpm, setNewSongBpm] = useState(120);
+  const [newSongTimeSig, setNewSongTimeSig] = useState("4/4");
+
+  // 오토메이터 (N마디 또는 N초마다 M BPM씩 자동 증가)
+  const [automatorOn, setAutomatorOn] = useState(false);
+  const [automatorMode, setAutomatorMode] = useState("bars"); // 'bars' | 'seconds'
+  const [automatorEveryN, setAutomatorEveryN] = useState(4);
+  const [automatorIncrement, setAutomatorIncrement] = useState(5);
+  const [showAutomatorPicker, setShowAutomatorPicker] = useState(false);
+
+  // 홈 화면에 고정(활성화)된 세트리스트 + 현재 불러온 곡
+  const [homeSetlistId, setHomeSetlistId] = useState(null);
+  const [currentSongId, setCurrentSongId] = useState(null);
+
+  const audioCtxRef = useRef(null);
+  const nextNoteTimeRef = useRef(0);
+  const beatCountRef = useRef(0);
+  const timerRef = useRef(null);
+  const bpmRef = useRef(bpm);
+  const timeSigRef = useRef(timeSig);
+  const soundRef = useRef(sound);
+  const subdivisionRef = useRef(subdivision);
+  const volumeRef = useRef(volume);
+  const mutedRef = useRef(muted);
+  const beatPatternRef = useRef(beatPattern);
+  const automatorOnRef = useRef(automatorOn);
+  const automatorModeRef = useRef(automatorMode);
+  const automatorEveryNRef = useRef(automatorEveryN);
+  const automatorIncrementRef = useRef(automatorIncrement);
+  const barsCompletedRef = useRef(0);
+
+  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { timeSigRef.current = timeSig; }, [timeSig]);
+  useEffect(() => { soundRef.current = sound; }, [sound]);
+  useEffect(() => { subdivisionRef.current = subdivision; }, [subdivision]);
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
+  useEffect(() => { beatPatternRef.current = beatPattern; }, [beatPattern]);
+  useEffect(() => { automatorOnRef.current = automatorOn; }, [automatorOn]);
+  useEffect(() => { automatorModeRef.current = automatorMode; }, [automatorMode]);
+  useEffect(() => { automatorEveryNRef.current = automatorEveryN; }, [automatorEveryN]);
+  useEffect(() => { automatorIncrementRef.current = automatorIncrement; }, [automatorIncrement]);
+  useEffect(() => {
+    const beats = beatsForSig(timeSig);
+    setBeatPattern(prev => (prev.length === beats ? prev : defaultBeatPattern(beats)));
+  }, [timeSig]);
+
+  const getCtx = () => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioCtxRef.current;
+  };
+
+  const playClick = useCallback((time, isAccentClick, beatIndex, isMainNote) => {
+    if (mutedRef.current) return;
+    const ctx = audioCtxRef.current;
+    const vol = volumeRef.current;
+    const type = soundRef.current;
+
+    // 보이스 카운트 - 서브디비전은 무시하고 메인 박에서만 숫자를 말함
+    if (type === "voice") {
+      if (!isMainNote) return;
+      const word = NUMBER_WORDS[beatIndex % NUMBER_WORDS.length];
+      const delay = Math.max(0, (time - ctx.currentTime) * 1000);
+      speakCount(word, delay, vol);
+      return;
+    }
+
+    // "클릭" 사운드 (드럼코치와 동일한 스펙: 사인파, 1200Hz/900Hz)
+    // 악센트 박의 "첫 번째 소리"만 악센트로 울리고, 나머지 모든 소리(서브디비전 포함)는 동일하게 재생
+    if (type === "click") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = isAccentClick ? 1200 : 900;
+      gain.gain.setValueAtTime(vol * (isAccentClick ? 1 : 0.6), time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+      osc.start(time);
+      osc.stop(time + 0.1);
+      return;
+    }
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    let freq = 1000;
+    let dur = 0.05;
+    let waveform = "sine";
+
+    if (type === "wood") {
+      freq = isAccentClick ? 900 : 700;
+      dur = 0.06;
+      waveform = "triangle";
+    } else if (type === "cowbell") {
+      freq = isAccentClick ? 800 : 560;
+      dur = 0.12;
+      waveform = "square";
+    } else if (type === "beep") {
+      freq = isAccentClick ? 1320 : 880;
+      dur = 0.08;
+      waveform = "sine";
+    }
+
+    osc.type = waveform;
+    osc.frequency.setValueAtTime(freq, time);
+    gain.gain.setValueAtTime(vol * (isAccentClick ? 1 : 0.7), time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+    osc.start(time);
+    osc.stop(time + dur);
+  }, []);
+
+  const scheduleRef = useRef();
+  scheduleRef.current = () => {
+    const ctx = audioCtxRef.current;
+    const beats = beatsForSig(timeSigRef.current);
+    const secondsPerBeat = 60.0 / bpmRef.current;
+    const offsets = SUBDIVISIONS[subdivisionRef.current].offsets;
+    const pattern = beatPatternRef.current;
+    while (nextNoteTimeRef.current < ctx.currentTime + 0.1) {
+      const beatIndex = beatCountRef.current % beats;
+      const beatState = pattern[beatIndex] ?? 1; // 0=악센트, 1=일반, 2=음소거(소리 안남)
+      const isAccent = beatState === 0;
+      const isMutedBeat = beatState === 2;
+
+      // 새 마디 시작 시점(첫 박) - 오토메이터 "마디" 모드 체크
+      if (beatIndex === 0 && beatCountRef.current > 0) {
+        barsCompletedRef.current += 1;
+        if (automatorOnRef.current && automatorModeRef.current === "bars") {
+          const n = Math.max(1, Number(automatorEveryNRef.current) || 1);
+          if (barsCompletedRef.current % n === 0) {
+            setBpm(b => Math.min(300, b + (Number(automatorIncrementRef.current) || 0)));
+          }
+        }
+      }
+
+      if (!isMutedBeat) {
+        offsets.forEach((offset, subIdx) => {
+          const noteTime = nextNoteTimeRef.current + offset * secondsPerBeat;
+          const isMainNote = subIdx === 0;
+          const isAccentClick = isAccent && isMainNote; // 악센트 박의 "첫 소리"만 악센트
+          playClick(noteTime, isAccentClick, beatIndex, isMainNote);
+
+          const subDelay = Math.max(0, (noteTime - ctx.currentTime) * 1000);
+          setTimeout(() => setCurrentSub({ beat: beatIndex, sub: subIdx }), subDelay);
+        });
+      }
+
+      const delay = Math.max(0, (nextNoteTimeRef.current - ctx.currentTime) * 1000);
+      setTimeout(() => setCurrentBeat(beatIndex), delay);
+
+      nextNoteTimeRef.current += secondsPerBeat;
+      beatCountRef.current += 1;
+    }
+  };
+
+  useEffect(() => {
+    if (playing) {
+      unlockSilentAudio(); // 아이폰 무음 모드에서도 소리 나오게
+      const ctx = getCtx();
+      if (ctx.state === "suspended") ctx.resume();
+      beatCountRef.current = 0;
+      barsCompletedRef.current = 0;
+      nextNoteTimeRef.current = ctx.currentTime + 0.05;
+      timerRef.current = setInterval(() => scheduleRef.current(), 25);
+    } else {
+      clearInterval(timerRef.current);
+      setCurrentBeat(-1);
+      setCurrentSub({ beat: -1, sub: -1 });
+    }
+    return () => clearInterval(timerRef.current);
+  }, [playing]);
+
+  // 오토메이터 "초" 모드 - 재생 중일 때 N초마다 BPM 증가
+  useEffect(() => {
+    if (playing && automatorOn && automatorMode === "seconds") {
+      const ms = Math.max(1, Number(automatorEveryN) || 1) * 1000;
+      const id = setInterval(() => {
+        setBpm(b => Math.min(300, b + (Number(automatorIncrement) || 0)));
+      }, ms);
+      return () => clearInterval(id);
+    }
+  }, [playing, automatorOn, automatorMode, automatorEveryN, automatorIncrement]);
+
+  const togglePlay = () => setPlaying(p => !p);
+
+  const changeBpm = (delta) => {
+    setBpm(b => Math.min(300, Math.max(20, b + delta)));
+  };
+
+  // +/- 버튼 꾹 누르면 10씩 연속 변경
+  const holdTimeoutRef = useRef(null);
+  const holdIntervalRef = useRef(null);
+  const longPressRef = useRef(false);
+  const startHold = (delta) => {
+    longPressRef.current = false;
+    holdTimeoutRef.current = setTimeout(() => {
+      longPressRef.current = true;
+      changeBpm(delta);
+      holdIntervalRef.current = setInterval(() => changeBpm(delta), 320);
+    }, 400);
+  };
+  const endHold = () => {
+    clearTimeout(holdTimeoutRef.current);
+    clearInterval(holdIntervalRef.current);
+  };
+  const handlePmClick = (delta) => {
+    if (!longPressRef.current) changeBpm(delta);
+  };
+
+  // 세트리스트 / 노래 관리 (Firestore와 실시간 동기화)
+  useEffect(() => {
+    const unsubSetlists = window.__db.collection("setlists").onSnapshot(snap => {
+      const list = snap.docs.map(d => ({ id: d.id, name: d.data().name || "", songs: d.data().songs || [] }));
+      setSetlists(list);
+    });
+    const unsubMeta = window.__db.collection("meta").doc("app").onSnapshot(doc => {
+      const data = doc.data();
+      setHomeSetlistId(data && data.homeSetlistId ? data.homeSetlistId : null);
+    });
+    return () => { unsubSetlists(); unsubMeta(); };
+  }, []);
+
+  const addSetlist = () => {
+    const name = newSetlistName.trim();
+    if (!name) return;
+    const id = "sl_" + Date.now();
+    window.__db.collection("setlists").doc(id).set({ name, songs: [] });
+    setNewSetlistName("");
+    setShowAddSetlist(false);
+  };
+  const deleteSetlist = (id) => {
+    window.__db.collection("setlists").doc(id).delete();
+    if (homeSetlistId === id) {
+      window.__db.collection("meta").doc("app").set({ homeSetlistId: null }, { merge: true });
+    }
+  };
+  const addSong = () => {
+    const title = newSongTitle.trim();
+    if (!title || !activeSetlistId) return;
+    const bpmNum = Math.min(300, Math.max(20, Math.round(Number(newSongBpm)) || 120));
+    const song = { id: "song_" + Date.now(), title, bpm: bpmNum, timeSig: newSongTimeSig };
+    const current = setlists.find(sl => sl.id === activeSetlistId);
+    const newSongs = current ? [...current.songs, song] : [song];
+    window.__db.collection("setlists").doc(activeSetlistId).update({ songs: newSongs });
+    setNewSongTitle("");
+    setNewSongBpm(120);
+    setNewSongTimeSig("4/4");
+    setShowAddSong(false);
+  };
+  const deleteSong = (songId) => {
+    const current = setlists.find(sl => sl.id === activeSetlistId);
+    if (!current) return;
+    const newSongs = current.songs.filter(s => s.id !== songId);
+    window.__db.collection("setlists").doc(activeSetlistId).update({ songs: newSongs });
+  };
+  const loadSong = (song) => {
+    setBpm(song.bpm);
+    setTimeSig(song.timeSig);
+    setCurrentSongId(song.id);
+    setView("metronome");
+  };
+  const toggleHomeSetlist = (id) => {
+    const next = homeSetlistId === id ? null : id;
+    window.__db.collection("meta").doc("app").set({ homeSetlistId: next }, { merge: true });
+    if (next) setView("metronome");
+    setCurrentSongId(null);
+  };
+  const activeSetlist = setlists.find(sl => sl.id === activeSetlistId) || null;
+  const homeSetlist = setlists.find(sl => sl.id === homeSetlistId) || null;
+
+  const resetAll = () => {
+    setBpm(120);
+    setTimeSig("4/4");
+    setBeatPattern(defaultBeatPattern(4));
+    setAutomatorOn(false);
+    barsCompletedRef.current = 0;
+  };
+
+  // drag on BPM number to change value
+  const dragState = useRef(null);
+  const onBpmPointerDown = (e) => {
+    dragState.current = { startY: e.clientY, startBpm: bpm };
+    e.target.setPointerCapture(e.pointerId);
+  };
+  const onBpmPointerMove = (e) => {
+    if (!dragState.current) return;
+    const diff = dragState.current.startY - e.clientY;
+    const newBpm = Math.round(dragState.current.startBpm + diff / 3);
+    setBpm(Math.min(300, Math.max(20, newBpm)));
+  };
+  const onBpmPointerUp = () => { dragState.current = null; };
+
+  // Tap tempo
+  const tapTimesRef = useRef([]);
+  const [tapPulse, setTapPulse] = useState(false);
+  const onTapTempo = () => {
+    unlockSilentAudio(); // 아이폰 무음 모드에서도 소리 나오게 (사용자 제스처 시점에 호출)
+    const now = performance.now();
+    const times = tapTimesRef.current;
+    times.push(now);
+    if (times.length > 6) times.shift();
+    // discard taps older than 2.5s from the latest
+    while (times.length > 1 && now - times[0] > 2500) times.shift();
+
+    if (times.length >= 2) {
+      const intervals = [];
+      for (let i = 1; i < times.length; i++) intervals.push(times[i] - times[i - 1]);
+      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const newBpm = Math.round(60000 / avg);
+      if (newBpm >= 20 && newBpm <= 300) setBpm(newBpm);
+    }
+    setTapPulse(true);
+    setTimeout(() => setTapPulse(false), 100);
+  };
+
+  const beats = beatsForSig(timeSig);
+  const dots = Array.from({ length: beats }, (_, i) => i);
+
+  const volPercent = Math.round((muted ? 0 : volume) * 100);
+
+  return (
+    <div id="app">
+      {/* Top bar */}
+      <div className="topbar">
+        <button className="icon-btn" title="노래 목록" onClick={() => setView("setlists")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+        <button className="icon-btn" onClick={() => setMuted(m => !m)} title="음소거">
+          {muted ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M18 6a9 9 0 010 12"/></svg>
+          )}
+        </button>
+        <div className="volume-track" onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+          setVolume(pct);
+          setMuted(false);
+        }}>
+          <div className="track-bg">
+            <div className="track-fill" style={{ width: volPercent + "%" }}></div>
+          </div>
+        </div>
+        <div className="title">Metronome</div>
+        <button className="icon-btn" title="사운드 선택" onClick={() => setShowSoundPicker(true)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+        </button>
+      </div>
+
+      {view === "metronome" && (
+        <React.Fragment>
+        {/* 활성화된 세트리스트의 노래 목록 (탭하면 바로 다음 곡으로) */}
+        {homeSetlist && (
+          <div className="home-song-strip">
+            <div className="home-song-strip-title">{homeSetlist.name}</div>
+            {homeSetlist.songs.length === 0 ? (
+              <div className="list-item-sub">이 세트리스트에 노래가 없어요</div>
+            ) : (
+              <div className="home-song-strip-list">
+                {homeSetlist.songs.map(song => (
+                  <button
+                    key={song.id}
+                    className={"home-song-chip" + (song.id === currentSongId ? " active" : "")}
+                    onClick={() => loadSong(song)}
+                  >
+                    <span className="home-song-chip-title">{song.title}</span>
+                    <span className="home-song-chip-sub">♩={song.bpm} · {song.timeSig}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Beat display */}
+        <div className="beat-display">
+          {dots.map(i => {
+            const state = beatPattern[i] ?? 1;
+            const cls = "beat-dot"
+              + (state === 0 ? " accent-beat" : "")
+              + (state === 2 ? " muted-beat" : "")
+              + (currentBeat === i && state !== 2 ? " lit" : "");
+            const subCfg = SUBDIVISIONS[subdivision];
+            const gridSize = subCfg.gridSize || subCfg.offsets.length;
+            const activeSlots = subCfg.activeSlots || subCfg.offsets.map((_, idx) => idx);
+            const showSub = gridSize > 1;
+            return (
+              <div key={i} className="beat-column">
+                <div
+                  className={cls}
+                  onClick={() => setBeatPattern(prev => prev.map((v, idx) => idx === i ? (v + 1) % 3 : v))}
+                >{state === 0 && <AccentMark size="58%" />}</div>
+                {showSub && (
+                  <div className="sub-dot-row">
+                    {Array.from({ length: gridSize }, (_, slot) => {
+                      const activeIdx = activeSlots.indexOf(slot);
+                      const isActive = activeIdx !== -1;
+                      const isLit = isActive && state !== 2 && currentSub.beat === i && currentSub.sub === activeIdx;
+                      return (
+                        <div
+                          key={slot}
+                          className={"sub-dot" + (isActive ? "" : " sub-dot-empty") + (isLit ? " lit" : "") + (state === 2 ? " muted" : "")}
+                        ></div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Automator card */}
+        <div className="automator-card">
+          <button className="automator-row-btn" onClick={() => setShowAutomatorPicker(true)}>
+            <span className="automator-label">Automator</span>
+            <span className={"automator-value" + (automatorOn ? " active" : "")}>
+              {automatorOn ? `${automatorEveryN}${automatorMode === "bars" ? "마디" : "초"}/+${automatorIncrement}` : "-/-"}
+            </span>
+          </button>
+          <button className="automator-reset" onClick={resetAll} title="초기화">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          </button>
+        </div>
+
+        {/* Main card: BPM / play / time sig */}
+        <div className="main-card">
+          <div className="main-card-row">
+            <button className="pm-btn"
+              onPointerDown={() => startHold(-10)}
+              onPointerUp={endHold}
+              onPointerLeave={endHold}
+              onClick={() => handlePmClick(-1)}
+            >−</button>
+            <div className="bpm-center">
+              <span className="note-symbol">♩=</span>
+              <div
+                className="bpm-number"
+                onPointerDown={onBpmPointerDown}
+                onPointerMove={onBpmPointerMove}
+                onPointerUp={onBpmPointerUp}
+              >{bpm}</div>
+              <span className="bpm-unit">BPM</span>
+            </div>
+            <button className="pm-btn"
+              onPointerDown={() => startHold(10)}
+              onPointerUp={endHold}
+              onPointerLeave={endHold}
+              onClick={() => handlePmClick(1)}
+            >+</button>
+          </div>
+
+          <div className="main-card-divider"></div>
+
+          <div className="main-card-row playrow">
+            <span></span>
+            <button className={"play-btn-lg" + (playing ? " playing" : "")} onClick={togglePlay}>
+              {playing ? (
+                <svg viewBox="0 0 24 24" fill={playing ? "#1c1c1c" : "#eaeaea"}><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="#eaeaea"><polygon points="7,4 20,12 7,20"/></svg>
+              )}
+            </button>
+            <button className="tap-text-btn" onPointerDown={onTapTempo}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+              TAP
+            </button>
+          </div>
+
+          <div className="main-card-divider"></div>
+
+          <div className="main-card-row">
+            <button className="timesig-btn" onClick={() => setShowSigPicker(true)}>{timeSig}</button>
+            <button className="subdiv-btn" onClick={() => setShowSubdivPicker(true)}>
+              <NoteSymbol cfg={SUBDIVISIONS[subdivision]} size="24px" />
+            </button>
+          </div>
+        </div>
+
+        {showSigPicker && (
+          <div className="popover-backdrop" onClick={() => setShowSigPicker(false)}>
+            <div className="popover" onClick={e => e.stopPropagation()}>
+              <h3>박자표</h3>
+              <div className="sig-grid">
+                {TIME_SIGS.map(s => (
+                  <button key={s} className={"sig-opt" + (s === timeSig ? " selected" : "")}
+                    onClick={() => { setTimeSig(s); setShowSigPicker(false); }}>{s}</button>
+                ))}
+              </div>
+              <div className="close-hint">바깥을 탭하면 닫혀요</div>
+            </div>
+          </div>
+        )}
+
+        {showSoundPicker && (
+          <div className="popover-backdrop" onClick={() => setShowSoundPicker(false)}>
+            <div className="popover" onClick={e => e.stopPropagation()}>
+              <h3>클릭 사운드</h3>
+              <div className="sound-grid">
+                {Object.entries(SOUNDS).map(([key, label]) => (
+                  <button key={key} className={"sound-opt" + (key === sound ? " selected" : "")}
+                    onClick={() => { setSound(key); setShowSoundPicker(false); }}>{label}</button>
+                ))}
+              </div>
+              <div className="close-hint">바깥을 탭하면 닫혀요</div>
+            </div>
+          </div>
+        )}
+
+        {showSubdivPicker && (
+          <div className="popover-backdrop" onClick={() => setShowSubdivPicker(false)}>
+            <div className="popover" onClick={e => e.stopPropagation()}>
+              <h3>음표 (서브디비전)</h3>
+              <div className="sound-grid">
+                {Object.entries(SUBDIVISIONS).map(([key, cfg]) => (
+                  <button key={key} className={"sound-opt subdiv-opt" + (key === subdivision ? " selected" : "")}
+                    onClick={() => { setSubdivision(key); setShowSubdivPicker(false); }}>
+                    <span className="subdiv-symbol"><NoteSymbol cfg={cfg} size="28px" /></span>
+                    <span>{cfg.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="close-hint">바깥을 탭하면 닫혀요</div>
+            </div>
+          </div>
+        )}
+
+        {showAutomatorPicker && (
+          <div className="popover-backdrop" onClick={() => setShowAutomatorPicker(false)}>
+            <div className="popover" onClick={e => e.stopPropagation()}>
+              <h3>오토메이터</h3>
+
+              <div className="field-label">켜기 / 끄기</div>
+              <div className="field-select-row">
+                <button className={!automatorOn ? "selected" : ""} onClick={() => setAutomatorOn(false)}>끄기</button>
+                <button className={automatorOn ? "selected" : ""} onClick={() => setAutomatorOn(true)}>켜기</button>
+              </div>
+
+              <div className="field-label">기준</div>
+              <div className="field-select-row">
+                <button className={automatorMode === "bars" ? "selected" : ""} onClick={() => setAutomatorMode("bars")}>마디</button>
+                <button className={automatorMode === "seconds" ? "selected" : ""} onClick={() => setAutomatorMode("seconds")}>초</button>
+              </div>
+
+              <div className="field-label">{automatorMode === "bars" ? "몇 마디마다" : "몇 초마다"}</div>
+              <input
+                className="field-input"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                value={automatorEveryN}
+                onChange={e => setAutomatorEveryN(e.target.value)}
+              />
+
+              <div className="field-label">BPM 증가량</div>
+              <input
+                className="field-input"
+                type="number"
+                inputMode="numeric"
+                value={automatorIncrement}
+                onChange={e => setAutomatorIncrement(e.target.value)}
+              />
+
+              <div className="modal-actions">
+                <button className="modal-btn-save" onClick={() => setShowAutomatorPicker(false)}>확인</button>
+              </div>
+            </div>
+          </div>
+        )}
+        </React.Fragment>
+      )}
+
+      {view === "setlists" && (
+        <div className="list-screen">
+          <div className="list-header">
+            <button className="list-back-btn" onClick={() => setView("metronome")}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div className="list-title">노래 목록</div>
+          </div>
+
+          {setlists.length === 0 && <div className="list-empty">아직 세트리스트가 없어요.<br/>아래 버튼으로 첫 세트리스트를 만들어보세요.</div>}
+
+          {setlists.map(sl => (
+            <div key={sl.id} className={"list-item" + (sl.id === homeSetlistId ? " is-home" : "")} onClick={() => { setActiveSetlistId(sl.id); setView("songs"); }}>
+              <div className="list-item-main">
+                <div className="list-item-title">{sl.name}</div>
+                <div className="list-item-sub">노래 {sl.songs.length}곡{sl.id === homeSetlistId ? " · 홈에 활성화됨" : ""}</div>
+              </div>
+              <div className="list-item-actions">
+                <button
+                  className={"list-item-pin" + (sl.id === homeSetlistId ? " active" : "")}
+                  title="홈 화면에 활성화"
+                  onClick={(e) => { e.stopPropagation(); toggleHomeSetlist(sl.id); }}
+                >
+                  <svg viewBox="0 0 24 24" fill={sl.id === homeSetlistId ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V3H7v2a1 1 0 0 0 1 1 1 1 0 0 1 1 1z"/></svg>
+                </button>
+                <button className="list-item-del" onClick={(e) => { e.stopPropagation(); deleteSetlist(sl.id); }}>✕</button>
+              </div>
+            </div>
+          ))}
+
+          <button className="add-row-btn" onClick={() => setShowAddSetlist(true)}>+ 새 세트리스트 추가</button>
+        </div>
+      )}
+
+      {view === "songs" && activeSetlist && (
+        <div className="list-screen">
+          <div className="list-header">
+            <button className="list-back-btn" onClick={() => setView("setlists")}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div className="list-title">{activeSetlist.name}</div>
+          </div>
+
+          {activeSetlist.songs.length === 0 && <div className="list-empty">아직 등록된 노래가 없어요.</div>}
+
+          {activeSetlist.songs.map(song => (
+            <div key={song.id} className="list-item" onClick={() => loadSong(song)}>
+              <div className="list-item-main">
+                <div className="list-item-title">{song.title}</div>
+                <div className="list-item-sub">♩={song.bpm} BPM · {song.timeSig}</div>
+              </div>
+              <button className="list-item-del" onClick={(e) => { e.stopPropagation(); deleteSong(song.id); }}>✕</button>
+            </div>
+          ))}
+
+          <button className="add-row-btn" onClick={() => setShowAddSong(true)}>+ 새 노래 추가</button>
+        </div>
+      )}
+
+      {showAddSetlist && (
+        <div className="popover-backdrop" onClick={() => setShowAddSetlist(false)}>
+          <div className="popover" onClick={e => e.stopPropagation()}>
+            <h3>새 세트리스트</h3>
+            <div className="field-label">이름 (예: 8월 12일 공연)</div>
+            <input
+              className="field-input"
+              type="text"
+              value={newSetlistName}
+              onChange={e => setNewSetlistName(e.target.value)}
+              placeholder="세트리스트 이름"
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button className="modal-btn-cancel" onClick={() => { setShowAddSetlist(false); setNewSetlistName(""); }}>취소</button>
+              <button className="modal-btn-save" onClick={addSetlist}>추가</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddSong && (
+        <div className="popover-backdrop" onClick={() => setShowAddSong(false)}>
+          <div className="popover" onClick={e => e.stopPropagation()}>
+            <h3>새 노래 추가</h3>
+            <div className="field-label">곡 제목</div>
+            <input
+              className="field-input"
+              type="text"
+              value={newSongTitle}
+              onChange={e => setNewSongTitle(e.target.value)}
+              placeholder="곡 제목"
+              autoFocus
+            />
+            <div className="field-label">BPM</div>
+            <input
+              className="field-input"
+              type="number"
+              inputMode="numeric"
+              value={newSongBpm}
+              onChange={e => setNewSongBpm(e.target.value)}
+            />
+            <div className="field-label">박자표</div>
+            <div className="field-select-row">
+              {TIME_SIGS.map(s => (
+                <button key={s} className={s === newSongTimeSig ? "selected" : ""} onClick={() => setNewSongTimeSig(s)}>{s}</button>
+              ))}
+            </div>
+            <div className="modal-actions">
+              <button className="modal-btn-cancel" onClick={() => { setShowAddSong(false); setNewSongTitle(""); }}>취소</button>
+              <button className="modal-btn-save" onClick={addSong}>추가</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("app")).render(<App />);
+</script>
+</body>
+</html>

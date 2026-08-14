@@ -419,6 +419,7 @@
     max-height: 70vh;
     overflow-y: auto;
   }
+  .popover-wide { width: 320px; max-width: 90vw; }
   .popover h3 { margin: 0 0 12px 0; font-size: 14px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
   .sig-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .sig-opt {
@@ -446,7 +447,7 @@
   .sound-opt.selected { background: var(--accent); color: #1c1c1c; font-weight: 700; }
 
   .subdiv-opt { display: flex; align-items: center; gap: 14px; }
-  .subdiv-symbol { font-size: 24px; width: 40px; display: flex; justify-content: center; flex-shrink: 0; }
+  .subdiv-symbol { font-size: 24px; width: 96px; display: flex; justify-content: center; flex-shrink: 0; overflow: visible; }
 
   .close-hint { text-align: center; margin-top: 14px; font-size: 12px; color: var(--text-dim); }
 
@@ -1475,7 +1476,7 @@ function App() {
 
         {showSubdivPicker && (
           <div className="popover-backdrop" onClick={() => setShowSubdivPicker(false)}>
-            <div className="popover" onClick={e => e.stopPropagation()}>
+            <div className="popover popover-wide" onClick={e => e.stopPropagation()}>
               <h3>음표 (서브디비전)</h3>
               <div className="sound-grid">
                 {Object.entries(SUBDIVISIONS).map(([key, cfg]) => (

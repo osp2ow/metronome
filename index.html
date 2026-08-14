@@ -1001,7 +1001,6 @@ function App() {
   scheduleRef.current = () => {
     const ctx = audioCtxRef.current;
     const beats = beatsForSig(timeSigRef.current);
-    const secondsPerBeat = 60.0 / bpmRef.current;
     const offsets = SUBDIVISIONS[subdivisionRef.current].offsets;
     const pattern = beatPatternRef.current;
     while (nextNoteTimeRef.current < ctx.currentTime + 0.1) {
@@ -1011,15 +1010,21 @@ function App() {
       const isMutedBeat = beatState === 2;
 
       // 새 마디 시작 시점(첫 박) - 오토메이터 "마디" 모드 체크
+      // secondsPerBeat를 계산하기 전에 먼저 처리해야, 빨라진 BPM이 바로 이번 첫 박부터 적용됨
       if (beatIndex === 0 && beatCountRef.current > 0) {
         barsCompletedRef.current += 1;
         if (automatorOnRef.current && automatorModeRef.current === "bars") {
           const n = Math.max(1, Number(automatorEveryNRef.current) || 1);
           if (barsCompletedRef.current % n === 0) {
-            setBpm(b => Math.min(300, b + (Number(automatorIncrementRef.current) || 0)));
+            const inc = Number(automatorIncrementRef.current) || 0;
+            const newBpm = Math.min(300, bpmRef.current + inc);
+            bpmRef.current = newBpm; // 즉시 반영 (React state 업데이트를 기다리지 않음)
+            setBpm(newBpm);
           }
         }
       }
+
+      const secondsPerBeat = 60.0 / bpmRef.current;
 
       if (!isMutedBeat) {
         offsets.forEach((offset, subIdx) => {

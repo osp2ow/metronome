@@ -1299,28 +1299,26 @@ function App() {
                     onClick={() => setBeatPattern(prev => prev.map((v, idx) => idx === i ? (v + 1) % 3 : v))}
                   >{state === 0 && <AccentMark size="58%" />}</div>
                 </div>
-                {showDots && (
-                  <div className="subdots-slot">
-                    {dotSpecs.map((d, k) => {
-                      const isSilentDot = d.subIdx === null;
-                      const isLit = !isSilentDot && state !== 2 && currentSub.beat === i && currentSub.sub === d.subIdx;
-                      return (
-                        <React.Fragment key={k}>
+                <div className="subdots-slot">
+                  {showDots && dotSpecs.map((d, k) => {
+                    const isSilentDot = d.subIdx === null;
+                    const isLit = !isSilentDot && state !== 2 && currentSub.beat === i && currentSub.sub === d.subIdx;
+                    return (
+                      <React.Fragment key={k}>
+                        <div
+                          className={"sub-dot" + (isLit ? " lit" : "") + (state === 2 ? " muted" : "") + (isSilentDot ? " silent" : "")}
+                          style={{ left: (d.f * 100) + "%" }}
+                        ></div>
+                        {d.label && (
                           <div
-                            className={"sub-dot" + (isLit ? " lit" : "") + (state === 2 ? " muted" : "") + (isSilentDot ? " silent" : "")}
+                            className={"sub-dot-label" + (isLit ? " lit" : "")}
                             style={{ left: (d.f * 100) + "%" }}
-                          ></div>
-                          {d.label && (
-                            <div
-                              className={"sub-dot-label" + (isLit ? " lit" : "")}
-                              style={{ left: (d.f * 100) + "%" }}
-                            >{d.label}</div>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
-                )}
+                          >{d.label}</div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

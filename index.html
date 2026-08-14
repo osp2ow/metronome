@@ -688,8 +688,14 @@
     messagingSenderId: "734105235640",
     appId: "1:734105235640:web:64683c857ccb646600c44d"
   };
-  firebase.initializeApp(firebaseConfig);
-  window.__db = firebase.firestore();
+  // Firebase SDK 로드 실패(네트워크/광고차단/오프라인 등) 시에도 앱 전체가 멈추지 않도록 방어
+  try {
+    firebase.initializeApp(firebaseConfig);
+    window.__db = firebase.firestore();
+  } catch (e) {
+    console.warn("Firebase 초기화 실패 - 노래 목록(세트리스트) 기능은 이번 세션에서 사용할 수 없어요.", e);
+    window.__db = null;
+  }
 </script>
 
 <script type="text/babel" data-presets="react">
@@ -816,12 +822,13 @@ function NoteSymbol({ cfg, size }) {
   );
 }
 
-// TTS 엔진 시작 지연(대략 80~120ms) 보정을 위해 살짝 앞당겨 예약하고,
-// 이전 발화가 아직 끝나지 않았을 때만 cancel() 해서 불필요한 리셋 지연을 줄임
-const VOICE_LEAD_MS = 90;
+// TTS 엔진 시작 지연은 기기/브라우저마다 크게 달라서 고정값 하나로는 안 맞음.
+// 매 발화마다 "실제로 걸린 지연"을 onstart 이벤트로 측정해서, 다음 발화부터
+// 점점 더 정확한 보정값(voiceLeadEstimate)으로 스스로 맞춰가도록 함
+let voiceLeadEstimate = 110; // 시작값, 실측치로 계속 보정됨
 function speakCount(word, delayMs, vol) {
   if (!window.speechSynthesis) return;
-  const adjustedDelay = Math.max(0, delayMs - VOICE_LEAD_MS);
+  const adjustedDelay = Math.max(0, delayMs - voiceLeadEstimate);
   setTimeout(() => {
     if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
       window.speechSynthesis.cancel();
@@ -836,6 +843,15 @@ function speakCount(word, delayMs, vol) {
     let voice = voices.find(v => preferredNames.some(n => v.name.includes(n)));
     if (!voice) voice = voices.find(v => v.lang && v.lang.startsWith("en"));
     if (voice) utter.voice = voice;
+    const speakCallTime = performance.now();
+    utter.onstart = () => {
+      const observedLead = performance.now() - speakCallTime;
+      if (observedLead >= 0 && observedLead < 800) {
+        // 지수이동평균으로 점점 실제 기기의 지연시간에 수렴
+        voiceLeadEstimate = voiceLeadEstimate * 0.7 + observedLead * 0.3;
+        voiceLeadEstimate = Math.min(400, Math.max(30, voiceLeadEstimate));
+      }
+    };
     window.speechSynthesis.speak(utter);
   }, adjustedDelay);
 }
@@ -1034,13 +1050,20 @@ function App() {
           playClick(noteTime, isAccentClick, beatIndex, isMainNote);
 
           const subDelay = Math.max(0, (noteTime - ctx.currentTime) * 1000);
-          const subTimeoutId = setTimeout(() => setCurrentSub({ beat: beatIndex, sub: subIdx }), subDelay);
+          const subTimeoutId = setTimeout(() => {
+            setCurrentSub({ beat: beatIndex, sub: subIdx });
+            // 실행이 끝난 타이머 ID는 배열에서 바로 제거해 목록이 무한정 쌓이지 않게 함
+            pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(id => id !== subTimeoutId);
+          }, subDelay);
           pendingTimeoutsRef.current.push(subTimeoutId);
         });
       }
 
       const delay = Math.max(0, (nextNoteTimeRef.current - ctx.currentTime) * 1000);
-      const beatTimeoutId = setTimeout(() => setCurrentBeat(beatIndex), delay);
+      const beatTimeoutId = setTimeout(() => {
+        setCurrentBeat(beatIndex);
+        pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(id => id !== beatTimeoutId);
+      }, delay);
       pendingTimeoutsRef.current.push(beatTimeoutId);
 
       nextNoteTimeRef.current += secondsPerBeat;
@@ -1075,15 +1098,24 @@ function App() {
   }, [playing]);
 
   // 오토메이터 "초" 모드 - 재생 중일 때 N초마다 BPM 증가
+  // (설정값은 ref로 매 tick마다 최신값을 읽어서, 입력 중 매 키 입력마다 타이머가 재시작되지 않게 함)
+  const automatorSecElapsedRef = useRef(0);
   useEffect(() => {
     if (playing && automatorOn && automatorMode === "seconds") {
-      const ms = Math.max(1, Number(automatorEveryN) || 1) * 1000;
+      automatorSecElapsedRef.current = 0;
+      const TICK_MS = 250;
       const id = setInterval(() => {
-        setBpm(b => Math.min(300, b + (Number(automatorIncrement) || 0)));
-      }, ms);
+        automatorSecElapsedRef.current += TICK_MS;
+        const thresholdMs = Math.max(1, Number(automatorEveryNRef.current) || 1) * 1000;
+        if (automatorSecElapsedRef.current >= thresholdMs) {
+          automatorSecElapsedRef.current = 0;
+          const inc = Number(automatorIncrementRef.current) || 0;
+          setBpm(b => Math.min(300, b + inc));
+        }
+      }, TICK_MS);
       return () => clearInterval(id);
     }
-  }, [playing, automatorOn, automatorMode, automatorEveryN, automatorIncrement]);
+  }, [playing, automatorOn, automatorMode]);
 
   const togglePlay = () => setPlaying(p => !p);
 
@@ -1112,19 +1144,27 @@ function App() {
   };
 
   // 세트리스트 / 노래 관리 (Firestore와 실시간 동기화)
+  const [dbAvailable, setDbAvailable] = useState(!!window.__db);
   useEffect(() => {
-    const unsubSetlists = window.__db.collection("setlists").onSnapshot(snap => {
-      const list = snap.docs.map(d => ({ id: d.id, name: d.data().name || "", songs: d.data().songs || [] }));
-      setSetlists(list);
-    });
-    const unsubMeta = window.__db.collection("meta").doc("app").onSnapshot(doc => {
-      const data = doc.data();
-      setHomeSetlistId(data && data.homeSetlistId ? data.homeSetlistId : null);
-    });
-    return () => { unsubSetlists(); unsubMeta(); };
+    if (!window.__db) { setDbAvailable(false); return; }
+    let unsubSetlists, unsubMeta;
+    try {
+      unsubSetlists = window.__db.collection("setlists").onSnapshot(snap => {
+        const list = snap.docs.map(d => ({ id: d.id, name: d.data().name || "", songs: d.data().songs || [] }));
+        setSetlists(list);
+      }, () => setDbAvailable(false));
+      unsubMeta = window.__db.collection("meta").doc("app").onSnapshot(doc => {
+        const data = doc.data();
+        setHomeSetlistId(data && data.homeSetlistId ? data.homeSetlistId : null);
+      }, () => setDbAvailable(false));
+    } catch (e) {
+      setDbAvailable(false);
+    }
+    return () => { if (unsubSetlists) unsubSetlists(); if (unsubMeta) unsubMeta(); };
   }, []);
 
   const addSetlist = () => {
+    if (!window.__db) return;
     const name = newSetlistName.trim();
     if (!name) return;
     const id = "sl_" + Date.now();
@@ -1133,12 +1173,14 @@ function App() {
     setShowAddSetlist(false);
   };
   const deleteSetlist = (id) => {
+    if (!window.__db) return;
     window.__db.collection("setlists").doc(id).delete();
     if (homeSetlistId === id) {
       window.__db.collection("meta").doc("app").set({ homeSetlistId: null }, { merge: true });
     }
   };
   const addSong = () => {
+    if (!window.__db) return;
     const title = newSongTitle.trim();
     if (!title || !activeSetlistId) return;
     const bpmNum = Math.min(300, Math.max(20, Math.round(Number(newSongBpm)) || 120));
@@ -1152,6 +1194,7 @@ function App() {
     setShowAddSong(false);
   };
   const deleteSong = (songId) => {
+    if (!window.__db) return;
     const current = setlists.find(sl => sl.id === activeSetlistId);
     if (!current) return;
     const newSongs = current.songs.filter(s => s.id !== songId);
@@ -1164,6 +1207,7 @@ function App() {
     setView("metronome");
   };
   const toggleHomeSetlist = (id) => {
+    if (!window.__db) return;
     const next = homeSetlistId === id ? null : id;
     window.__db.collection("meta").doc("app").set({ homeSetlistId: next }, { merge: true });
     if (next) setView("metronome");
@@ -1551,7 +1595,13 @@ function App() {
             <div className="list-title">노래 목록</div>
           </div>
 
-          {setlists.length === 0 && <div className="list-empty">아직 세트리스트가 없어요.<br/>아래 버튼으로 첫 세트리스트를 만들어보세요.</div>}
+          {!dbAvailable && (
+            <div className="list-empty" style={{ color: "#e0245e", padding: "16px 4px" }}>
+              세트리스트 서버에 연결하지 못했어요. 네트워크 상태를 확인하고 새로고침해주세요.
+            </div>
+          )}
+
+          {dbAvailable && setlists.length === 0 && <div className="list-empty">아직 세트리스트가 없어요.<br/>아래 버튼으로 첫 세트리스트를 만들어보세요.</div>}
 
           {setlists.map(sl => (
             <div key={sl.id} className={"list-item" + (sl.id === homeSetlistId ? " is-home" : "")} onClick={() => { setActiveSetlistId(sl.id); setView("songs"); }}>

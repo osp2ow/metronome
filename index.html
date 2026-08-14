@@ -909,6 +909,7 @@ function App() {
   const nextNoteTimeRef = useRef(0);
   const beatCountRef = useRef(0);
   const pendingTimeoutsRef = useRef([]);
+  const activeOscillatorsRef = useRef([]);
   const timerRef = useRef(null);
   const bpmRef = useRef(bpm);
   const timeSigRef = useRef(timeSig);
@@ -979,6 +980,10 @@ function App() {
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
       osc.start(time);
       osc.stop(time + 0.1);
+      activeOscillatorsRef.current.push(osc);
+      osc.onended = () => {
+        activeOscillatorsRef.current = activeOscillatorsRef.current.filter(o => o !== osc);
+      };
       return;
     }
 
@@ -1011,6 +1016,10 @@ function App() {
     gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
     osc.start(time);
     osc.stop(time + dur);
+    activeOscillatorsRef.current.push(osc);
+    osc.onended = () => {
+      activeOscillatorsRef.current = activeOscillatorsRef.current.filter(o => o !== osc);
+    };
   }, []);
 
   const scheduleRef = useRef();
@@ -1074,23 +1083,30 @@ function App() {
   useEffect(() => {
     if (playing) {
       unlockSilentAudio(); // 아이폰 무음 모드에서도 소리 나오게
+      const isFreshContext = !audioCtxRef.current;
       const ctx = getCtx();
       if (ctx.state === "suspended") ctx.resume();
       beatCountRef.current = 0;
       barsCompletedRef.current = 0;
-      nextNoteTimeRef.current = ctx.currentTime + 0.05;
+      // 방금 새로 만들어진(워밍업 안 된) 오디오 컨텍스트는 여유를 더 줘서 첫 박이 씹히지 않게 함
+      nextNoteTimeRef.current = ctx.currentTime + (isFreshContext ? 0.15 : 0.05);
       timerRef.current = setInterval(() => scheduleRef.current(), 25);
     } else {
       clearInterval(timerRef.current);
       // 아직 재생 대기 중인(최대 0.1초 앞서 예약된) 클릭/비주얼 타이머를 즉시 취소
       pendingTimeoutsRef.current.forEach(id => clearTimeout(id));
       pendingTimeoutsRef.current = [];
-      // 오디오 컨텍스트를 완전히 종료시켜, 이미 예약돼 있던 오실레이터까지 확실히 끊고
-      // 다음 재생 시 깨끗한 상태로 새로 시작함 (suspend만으로는 재생 재개 시 밀린 소리가 튈 수 있음)
+      // 이미 예약(하지만 아직 안 울린)된 오실레이터들을 즉시 멈춤.
+      // 오디오 컨텍스트 자체는 닫지 않고 계속 살려둬서(다음 재생 때 새로 만들 필요 없음),
+      // "처음 재생할 때 첫 박 소리가 안 들리는" 문제(막 생성된 컨텍스트의 워밍업 지연)를 피함
       if (audioCtxRef.current) {
-        audioCtxRef.current.close().catch(() => {});
-        audioCtxRef.current = null;
+        const ctx = audioCtxRef.current;
+        activeOscillatorsRef.current.forEach(osc => {
+          try { osc.stop(ctx.currentTime); } catch (e) {}
+        });
+        activeOscillatorsRef.current = [];
       }
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
       setCurrentBeat(-1);
       setCurrentSub({ beat: -1, sub: -1 });
     }

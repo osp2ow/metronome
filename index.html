@@ -838,13 +838,25 @@ function speakCount(word, delayMs, vol) {
 }
 
 function App() {
-  const [bpm, setBpm] = useState(105);
+  const [bpm, setBpm] = useState(() => {
+    try {
+      const saved = localStorage.getItem("metronome_bpm");
+      const n = saved ? Number(saved) : NaN;
+      return Number.isFinite(n) && n >= 20 && n <= 300 ? n : 105;
+    } catch (e) { return 105; }
+  });
   const [playing, setPlaying] = useState(false);
   const [timeSig, setTimeSig] = useState("4/4");
   const [sound, setSound] = useState("click");
   const [subdivision, setSubdivision] = useState("quarter");
   const [muted, setMuted] = useState(false);
-  const [volume, setVolume] = useState(0.8);
+  const [volume, setVolume] = useState(() => {
+    try {
+      const saved = localStorage.getItem("metronome_volume");
+      const n = saved ? Number(saved) : NaN;
+      return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0.8;
+    } catch (e) { return 0.8; }
+  });
   const [currentBeat, setCurrentBeat] = useState(-1);
   const [currentSub, setCurrentSub] = useState({ beat: -1, sub: -1 });
   const [showSigPicker, setShowSigPicker] = useState(false);
@@ -893,6 +905,12 @@ function App() {
   const barsCompletedRef = useRef(0);
 
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => {
+    try { localStorage.setItem("metronome_bpm", String(bpm)); } catch (e) {}
+  }, [bpm]);
+  useEffect(() => {
+    try { localStorage.setItem("metronome_volume", String(volume)); } catch (e) {}
+  }, [volume]);
   useEffect(() => { timeSigRef.current = timeSig; }, [timeSig]);
   useEffect(() => { soundRef.current = sound; }, [sound]);
   useEffect(() => { subdivisionRef.current = subdivision; }, [subdivision]);

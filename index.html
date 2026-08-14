@@ -149,41 +149,32 @@
     display: flex;
     justify-content: center;
   }
+  /* 모바일: 작은 원들이 큰 원 바로 밑에 모여있는 단순한 형태 (오버플로우 방지) */
   .subdots-slot {
-    position: relative;
-    margin-left: 50%;
-    width: 110px;
-    height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 13px;
   }
   .sub-dot {
-    position: absolute;
-    top: 0;
-    width: 11px;
-    height: 11px;
+    position: static;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     background: var(--accent-dim);
     opacity: 0.5;
-    transform: translateX(-50%);
     transition: background 0.05s linear, transform 0.05s linear, opacity 0.05s linear;
   }
   .sub-dot.lit {
     background: var(--accent);
     opacity: 1;
-    transform: translateX(-50%) scale(1.4);
+    transform: scale(1.4);
     box-shadow: 0 0 8px rgba(183,236,58,0.65);
   }
   .sub-dot.muted { background: transparent; border: 1px solid #444; opacity: 0.4; }
   .sub-dot.silent { background: transparent; border: 1.5px solid #9a9a9a; opacity: 0.9; }
-  .sub-dot-label {
-    position: absolute;
-    top: 16px;
-    transform: translateX(-50%);
-    font-size: 10px;
-    color: var(--accent-dim);
-    white-space: nowrap;
-    pointer-events: none;
-    transition: color 0.05s linear, font-weight 0.05s linear;
-  }
+  .sub-dot-label { display: none; }
   .sub-dot-label.lit { color: var(--accent); font-weight: 700; }
 
   /* ---- Automator card ---- */
@@ -619,9 +610,27 @@
       padding: clamp(10px, 2.5vh, 40px) 80px;
     }
     .beat-dot { width: clamp(36px, min(9vh, 6vw), 92px); height: clamp(36px, min(9vh, 6vw), 92px); }
-    .subdots-slot { width: 180px; height: 20px; }
-    .sub-dot-label { font-size: 13px; top: 22px; }
-    .sub-dot { width: 16px; height: 16px; }
+    /* 아이패드/PC: 큰 원 사이 거리를 정확히 등분한 위치에 점을 배치하고 음절 텍스트도 표시 */
+    .subdots-slot {
+      display: block;
+      position: relative;
+      margin-left: 50%;
+      width: 180px;
+      height: 20px;
+    }
+    .sub-dot { position: absolute; top: 0; width: 16px; height: 16px; transform: translateX(-50%); }
+    .sub-dot.lit { transform: translateX(-50%) scale(1.4); }
+    .sub-dot-label {
+      display: block;
+      position: absolute;
+      top: 22px;
+      transform: translateX(-50%);
+      font-size: 13px;
+      color: var(--accent-dim);
+      white-space: nowrap;
+      pointer-events: none;
+      transition: color 0.05s linear, font-weight 0.05s linear;
+    }
     .controls-row { flex: 1.6 1 0; min-height: 0; }
     .controls-row .main-card,
     .controls-row .automator-card { overflow-y: auto; }
@@ -868,6 +877,7 @@ function App() {
   const audioCtxRef = useRef(null);
   const nextNoteTimeRef = useRef(0);
   const beatCountRef = useRef(0);
+  const pendingTimeoutsRef = useRef([]);
   const timerRef = useRef(null);
   const bpmRef = useRef(bpm);
   const timeSigRef = useRef(timeSig);
@@ -998,12 +1008,14 @@ function App() {
           playClick(noteTime, isAccentClick, beatIndex, isMainNote);
 
           const subDelay = Math.max(0, (noteTime - ctx.currentTime) * 1000);
-          setTimeout(() => setCurrentSub({ beat: beatIndex, sub: subIdx }), subDelay);
+          const subTimeoutId = setTimeout(() => setCurrentSub({ beat: beatIndex, sub: subIdx }), subDelay);
+          pendingTimeoutsRef.current.push(subTimeoutId);
         });
       }
 
       const delay = Math.max(0, (nextNoteTimeRef.current - ctx.currentTime) * 1000);
-      setTimeout(() => setCurrentBeat(beatIndex), delay);
+      const beatTimeoutId = setTimeout(() => setCurrentBeat(beatIndex), delay);
+      pendingTimeoutsRef.current.push(beatTimeoutId);
 
       nextNoteTimeRef.current += secondsPerBeat;
       beatCountRef.current += 1;
@@ -1021,6 +1033,15 @@ function App() {
       timerRef.current = setInterval(() => scheduleRef.current(), 25);
     } else {
       clearInterval(timerRef.current);
+      // 아직 재생 대기 중인(최대 0.1초 앞서 예약된) 클릭/비주얼 타이머를 즉시 취소
+      pendingTimeoutsRef.current.forEach(id => clearTimeout(id));
+      pendingTimeoutsRef.current = [];
+      // 오디오 컨텍스트를 완전히 종료시켜, 이미 예약돼 있던 오실레이터까지 확실히 끊고
+      // 다음 재생 시 깨끗한 상태로 새로 시작함 (suspend만으로는 재생 재개 시 밀린 소리가 튈 수 있음)
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
+      }
       setCurrentBeat(-1);
       setCurrentSub({ beat: -1, sub: -1 });
     }

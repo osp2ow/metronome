@@ -1214,6 +1214,19 @@ function App() {
 
   const togglePlay = () => setPlaying(p => !p);
 
+  // 스페이스바로 재생/정지 토글 (입력창에 타이핑 중일 때는 무시)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code !== "Space" && e.key !== " ") return;
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target && e.target.isContentEditable)) return;
+      e.preventDefault();
+      setPlaying(p => !p);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const changeBpm = (delta) => {
     setBpm(b => Math.min(300, Math.max(20, b + delta)));
   };

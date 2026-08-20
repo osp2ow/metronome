@@ -174,6 +174,7 @@
   }
   .sub-dot.muted { background: transparent; border: 1px solid #444; opacity: 0.4; }
   .sub-dot.silent { background: transparent; border: 1.5px solid #9a9a9a; opacity: 0.9; }
+  .sub-dot.off { background: #000; border: 1px solid #2a2a2a; opacity: 1; box-shadow: none; }
   .sub-dot-label { display: none; }
   .sub-dot-label.lit { color: var(--accent); font-weight: 700; }
 
@@ -952,6 +953,7 @@ function App() {
   const [showSoundPicker, setShowSoundPicker] = useState(false);
   const [showSubdivPicker, setShowSubdivPicker] = useState(false);
   const [beatPattern, setBeatPattern] = useState(() => defaultBeatPattern(4));
+  const [mutedSubs, setMutedSubs] = useState(() => new Set()); // "beatIdx-subIdx" 형태로 꺼진 서브디비전 점을 저장
 
   // 노래 목록 (세트리스트 > 노래 > BPM/박자표 불러오기)
   const [view, setView] = useState("metronome"); // metronome | setlists | songs
@@ -989,6 +991,7 @@ function App() {
   const volumeRef = useRef(volume);
   const mutedRef = useRef(muted);
   const beatPatternRef = useRef(beatPattern);
+  const mutedSubsRef = useRef(mutedSubs);
   const automatorOnRef = useRef(automatorOn);
   const automatorModeRef = useRef(automatorMode);
   const automatorEveryNRef = useRef(automatorEveryN);
@@ -1008,6 +1011,7 @@ function App() {
   useEffect(() => { volumeRef.current = volume; }, [volume]);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
   useEffect(() => { beatPatternRef.current = beatPattern; }, [beatPattern]);
+  useEffect(() => { mutedSubsRef.current = mutedSubs; }, [mutedSubs]);
   useEffect(() => { automatorOnRef.current = automatorOn; }, [automatorOn]);
   useEffect(() => { automatorModeRef.current = automatorMode; }, [automatorMode]);
   useEffect(() => { automatorEveryNRef.current = automatorEveryN; }, [automatorEveryN]);
@@ -1016,6 +1020,8 @@ function App() {
     const beats = beatsForSig(timeSig);
     setBeatPattern(prev => (prev.length === beats ? prev : defaultBeatPattern(beats)));
   }, [timeSig]);
+  // 서브디비전이 바뀌면 점의 개수/의미가 달라지므로 꺼둔 서브디비전 점 상태를 초기화
+  useEffect(() => { setMutedSubs(new Set()); }, [subdivision]);
 
   const getCtx = () => {
     if (!audioCtxRef.current) {
@@ -1132,8 +1138,11 @@ function App() {
 
       if (!isMutedBeat) {
         offsets.forEach((offset, subIdx) => {
-          const noteTime = nextNoteTimeRef.current + offset * secondsPerBeat;
           const isMainNote = subIdx === 0;
+          // 사용자가 꺼둔 서브디비전 점(메인 박 제외)은 소리도 안 나고 반짝이지도 않음
+          if (!isMainNote && mutedSubsRef.current.has(beatIndex + "-" + subIdx)) return;
+
+          const noteTime = nextNoteTimeRef.current + offset * secondsPerBeat;
           const isAccentClick = isAccent && isMainNote; // 악센트 박의 "첫 소리"만 악센트
           playClick(noteTime, isAccentClick, beatIndex, isMainNote);
 
@@ -1519,12 +1528,22 @@ function App() {
                 <div className="subdots-slot">
                   {showDots && dotSpecs.map((d, k) => {
                     const isSilentDot = d.subIdx === null;
-                    const isLit = !isSilentDot && state !== 2 && currentSub.beat === i && currentSub.sub === d.subIdx;
+                    const isMutable = !isSilentDot && d.subIdx > 0; // 메인 박(subIdx 0)은 큰 원에서 따로 제어하므로 제외
+                    const isOff = isMutable && mutedSubs.has(i + "-" + d.subIdx);
+                    const isLit = !isSilentDot && !isOff && state !== 2 && currentSub.beat === i && currentSub.sub === d.subIdx;
                     return (
                       <React.Fragment key={k}>
                         <div
-                          className={"sub-dot" + (isLit ? " lit" : "") + (state === 2 ? " muted" : "") + (isSilentDot ? " silent" : "")}
-                          style={{ left: (d.f * 100) + "%" }}
+                          className={"sub-dot" + (isLit ? " lit" : "") + (state === 2 ? " muted" : "") + (isSilentDot ? " silent" : "") + (isOff ? " off" : "")}
+                          style={{ left: (d.f * 100) + "%", cursor: isMutable ? "pointer" : "default" }}
+                          onClick={isMutable ? () => {
+                            setMutedSubs(prev => {
+                              const next = new Set(prev);
+                              const key = i + "-" + d.subIdx;
+                              if (next.has(key)) next.delete(key); else next.add(key);
+                              return next;
+                            });
+                          } : undefined}
                         ></div>
                         {d.label && (
                           <div

@@ -932,7 +932,7 @@ function App() {
     try {
       const saved = localStorage.getItem("metronome_bpm");
       const n = saved ? Number(saved) : NaN;
-      return Number.isFinite(n) && n >= 20 && n <= 300 ? n : 105;
+      return Number.isFinite(n) && n >= 20 && n <= 400 ? n : 105;
     } catch (e) { return 105; }
   });
   const [playing, setPlaying] = useState(false);
@@ -1127,7 +1127,7 @@ function App() {
           const n = Math.max(1, Number(automatorEveryNRef.current) || 1);
           if (barsCompletedRef.current % n === 0) {
             const inc = Number(automatorIncrementRef.current) || 0;
-            const newBpm = Math.min(300, bpmRef.current + inc);
+            const newBpm = Math.min(400, bpmRef.current + inc);
             bpmRef.current = newBpm; // 즉시 반영 (React state 업데이트를 기다리지 않음)
             setBpm(newBpm);
           }
@@ -1214,7 +1214,7 @@ function App() {
         if (automatorSecElapsedRef.current >= thresholdMs) {
           automatorSecElapsedRef.current = 0;
           const inc = Number(automatorIncrementRef.current) || 0;
-          setBpm(b => Math.min(300, b + inc));
+          setBpm(b => Math.min(400, b + inc));
         }
       }, TICK_MS);
       return () => clearInterval(id);
@@ -1237,7 +1237,7 @@ function App() {
   }, []);
 
   const changeBpm = (delta) => {
-    setBpm(b => Math.min(300, Math.max(20, b + delta)));
+    setBpm(b => Math.min(400, Math.max(20, b + delta)));
   };
 
   // +/- 버튼 꾹 누르면 10씩 연속 변경
@@ -1369,7 +1369,7 @@ function App() {
     if (!dragState.current) return;
     const diff = dragState.current.startY - e.clientY;
     const newBpm = Math.round(dragState.current.startBpm + diff / 3);
-    setBpm(Math.min(300, Math.max(20, newBpm)));
+    setBpm(Math.min(400, Math.max(20, newBpm)));
   };
   const onBpmPointerUp = () => { dragState.current = null; };
 
@@ -1391,7 +1391,7 @@ function App() {
       for (let i = 1; i < times.length; i++) intervals.push(times[i] - times[i - 1]);
       const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
       const newBpm = Math.round(60000 / avg);
-      if (newBpm >= 20 && newBpm <= 300) setBpm(newBpm);
+      if (newBpm >= 20 && newBpm <= 400) setBpm(newBpm);
     }
     setTapPulse(true);
     setTimeout(() => setTapPulse(false), 100);

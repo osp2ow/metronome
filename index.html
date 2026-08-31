@@ -977,6 +977,7 @@ function App() {
   const [currentSongId, setCurrentSongId] = useState(null);
 
   const audioCtxRef = useRef(null);
+  const wakeLockRef = useRef(null);
   const voiceBuffersRef = useRef({});
   const voiceDecodeStartedRef = useRef(false);
   const nextNoteTimeRef = useRef(0);
@@ -1199,6 +1200,36 @@ function App() {
       setCurrentSub({ beat: -1, sub: -1 });
     }
     return () => clearInterval(timerRef.current);
+  }, [playing]);
+
+  // 재생 중에는 화면이 꺼지지 않도록 Wake Lock 유지 (지원 브라우저 한정, 아이패드 사파리 포함).
+  // 탭을 백그라운드로 보냈다 돌아오면 OS가 락을 자동 해제하므로, 다시 보이는 순간 재요청함
+  useEffect(() => {
+    if (!("wakeLock" in navigator)) return;
+    let cancelled = false;
+    const requestWakeLock = () => {
+      navigator.wakeLock.request("screen")
+        .then(lock => {
+          if (cancelled) { lock.release().catch(() => {}); return; }
+          wakeLockRef.current = lock;
+        })
+        .catch(() => {}); // 권한/지원 문제 시 조용히 무시 (화면 안 꺼지는 건 부가 기능이라 앱 동작엔 영향 없음)
+    };
+    const handleVisibility = () => {
+      if (playing && document.visibilityState === "visible") requestWakeLock();
+    };
+    if (playing) {
+      requestWakeLock();
+      document.addEventListener("visibilitychange", handleVisibility);
+    }
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
   }, [playing]);
 
   // 오토메이터 "초" 모드 - 재생 중일 때 N초마다 BPM 증가

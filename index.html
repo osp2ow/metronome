@@ -738,13 +738,16 @@ const SILENT_AUDIO_SRC = "data:audio/wav;base64,UklGRmQfAABXQVZFZm10IBAAAAABAAEA
 // 페이지의 오디오 세션을 '재생' 카테고리로 유지시키는 트릭 (드럼코치 앱과 동일한 방식)
 function unlockSilentAudio() {
   try {
-    if (!window.__metroSilentAudio) {
-      const a = new Audio(SILENT_AUDIO_SRC);
+    let a = window.__metroSilentAudio;
+    // 오래 방치되면 iOS가 이 요소를 에러/종료 상태로 만들 수 있어서, 망가졌으면 새로 만든다
+    if (a && (a.error || a.ended)) { try { a.pause(); } catch (e) {} a = null; window.__metroSilentAudio = null; }
+    if (!a) {
+      a = new Audio(SILENT_AUDIO_SRC);
       a.loop = true;
       a.volume = 0.01;
       window.__metroSilentAudio = a;
     }
-    window.__metroSilentAudio.play().catch(() => {});
+    if (a.paused) a.play().catch(() => {});
   } catch (e) {}
 }
 
@@ -977,6 +980,10 @@ function App() {
   const [currentSongId, setCurrentSongId] = useState(null);
 
   const audioCtxRef = useRef(null);
+  const playingRef = useRef(false);
+  playingRef.current = playing;
+  const lastStopTimeRef = useRef(0);
+  const playStartTokenRef = useRef(0);
   const wakeLockRef = useRef(null);
   const voiceBuffersRef = useRef({});
   const voiceDecodeStartedRef = useRef(false);
@@ -1024,22 +1031,60 @@ function App() {
   // 서브디비전이 바뀌면 점의 개수/의미가 달라지므로 꺼둔 서브디비전 점 상태를 초기화
   useEffect(() => { setMutedSubs(new Set()); }, [subdivision]);
 
+  const decodeVoices = (ctx) => {
+    ["one", "two", "three", "four"].forEach(name => {
+      if (voiceBuffersRef.current[name]) return;
+      ctx.decodeAudioData(base64ToArrayBuffer(VOICE_AUDIO_SRC[name]))
+        .then(buf => {
+          voiceBuffersRef.current[name] = { buffer: buf, leadSilence: detectLeadingSilence(buf) };
+        })
+        .catch(() => { voiceDecodeStartedRef.current = false; }); // 실패하면 다음 재생 때 다시 시도
+    });
+  };
+
+  const createCtx = () => {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // 재생 중에 OS가 컨텍스트를 suspended/interrupted 로 바꾸면 즉시 되살린다
+    ctx.onstatechange = () => {
+      if (playingRef.current && audioCtxRef.current === ctx && ctx.state !== "running" && ctx.state !== "closed") {
+        try { ctx.resume().catch(() => {}); } catch (e) {}
+      }
+    };
+    return ctx;
+  };
+
   const getCtx = () => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+      audioCtxRef.current = createCtx();
+      voiceDecodeStartedRef.current = false;
     }
     if (!voiceDecodeStartedRef.current) {
       voiceDecodeStartedRef.current = true;
-      const ctx = audioCtxRef.current;
-      ["one", "two", "three", "four"].forEach(name => {
-        ctx.decodeAudioData(base64ToArrayBuffer(VOICE_AUDIO_SRC[name]))
-          .then(buf => {
-            voiceBuffersRef.current[name] = { buffer: buf, leadSilence: detectLeadingSilence(buf) };
-          })
-          .catch(() => {});
-      });
+      decodeVoices(audioCtxRef.current);
     }
     return audioCtxRef.current;
+  };
+
+  // 먹통이 된 오디오 컨텍스트를 버리고 새로 만든다 (디코딩된 보이스 버퍼는 재사용)
+  const rebuildCtx = () => {
+    const old = audioCtxRef.current;
+    audioCtxRef.current = null;
+    activeOscillatorsRef.current = [];
+    if (old) {
+      old.onstatechange = null;
+      try { const c = old.close(); if (c && c.catch) c.catch(() => {}); } catch (e) {}
+    }
+    return getCtx();
+  };
+
+  // 재생 도중 소리가 죽었을 때 복구: 먼저 resume, 안 되면(forceRebuild) 컨텍스트 재생성
+  const recoverAudio = (forceRebuild) => {
+    unlockSilentAudio();
+    let ctx = audioCtxRef.current;
+    if (!ctx || forceRebuild || ctx.state === "closed") ctx = rebuildCtx();
+    try { ctx.resume().catch(() => {}); } catch (e) {}
+    nextNoteTimeRef.current = ctx.currentTime + 0.08;
+    return ctx;
   };
 
   const playClick = useCallback((time, isAccentClick, beatIndex, isMainNote) => {
@@ -1170,17 +1215,39 @@ function App() {
   };
 
   useEffect(() => {
+    const token = ++playStartTokenRef.current;
     if (playing) {
       unlockSilentAudio(); // 아이폰 무음 모드에서도 소리 나오게
-      const isFreshContext = !audioCtxRef.current;
-      const ctx = getCtx();
-      if (ctx.state === "suspended") ctx.resume();
+      // 사용자 제스처 안(=지금)에서 동기적으로 컨텍스트 상태를 점검한다.
+      // 수업 사이 오래 방치되면 컨텍스트가 suspended/interrupted 이거나, "running"인데 실제로는 죽어있는 경우가 있어서
+      // 정상 running 이 아니거나 10분 이상 쉬었다면 새로 만들어 쓴다
+      let ctx = audioCtxRef.current;
+      const idleMs = Date.now() - lastStopTimeRef.current;
+      const needRebuild = ctx && (ctx.state !== "running" || (lastStopTimeRef.current && idleMs > 10 * 60 * 1000));
+      const isFreshContext = !ctx || needRebuild;
+      ctx = needRebuild ? rebuildCtx() : getCtx();
+      const resumePromise = (() => { try { return ctx.resume(); } catch (e) { return Promise.resolve(); } })();
       beatCountRef.current = 0;
       barsCompletedRef.current = 0;
-      // 방금 새로 만들어진(워밍업 안 된) 오디오 컨텍스트는 여유를 더 줘서 첫 박이 씹히지 않게 함
-      nextNoteTimeRef.current = ctx.currentTime + (isFreshContext ? 0.15 : 0.05);
-      timerRef.current = setInterval(() => scheduleRef.current(), 25);
+      const startScheduling = () => {
+        if (token !== playStartTokenRef.current) return; // 그 사이 정지됨
+        clearInterval(timerRef.current);
+        const c = audioCtxRef.current;
+        // 방금 새로 만들어진(워밍업 안 된) 오디오 컨텍스트는 여유를 더 줘서 첫 박이 씹히지 않게 함
+        nextNoteTimeRef.current = c.currentTime + (isFreshContext ? 0.15 : 0.05);
+        timerRef.current = setInterval(() => scheduleRef.current(), 25);
+      };
+      if (ctx.state === "running") {
+        startScheduling();
+      } else {
+        // resume 이 끝나 실제로 running 이 된 뒤에 박자를 시작 (최대 1초 대기 후엔 일단 시작, 워치독이 복구 시도)
+        Promise.race([
+          Promise.resolve(resumePromise).catch(() => {}),
+          new Promise(r => setTimeout(r, 1000)),
+        ]).then(startScheduling);
+      }
     } else {
+      lastStopTimeRef.current = Date.now();
       clearInterval(timerRef.current);
       // 아직 재생 대기 중인(최대 0.1초 앞서 예약된) 클릭/비주얼 타이머를 즉시 취소
       pendingTimeoutsRef.current.forEach(id => clearTimeout(id));
@@ -1200,6 +1267,57 @@ function App() {
       setCurrentSub({ beat: -1, sub: -1 });
     }
     return () => clearInterval(timerRef.current);
+  }, [playing]);
+
+  // 재생 중 오디오 워치독: 화면 박자는 돌아가는데 소리만 죽는 상황(iOS의 suspended/interrupted, 시계 정지)을 감지해 복구
+  useEffect(() => {
+    if (!playing) return;
+    let lastTime = -1, stalled = 0, badState = 0;
+    const check = () => {
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      const sa = window.__metroSilentAudio;
+      if (sa && sa.paused) sa.play().catch(() => {});
+      if (ctx.state !== "running") {
+        badState++;
+        try { ctx.resume().catch(() => {}); } catch (e) {}
+        if (badState >= 3) { recoverAudio(true); badState = 0; stalled = 0; lastTime = -1; }
+        return;
+      }
+      badState = 0;
+      if (ctx.currentTime === lastTime) {
+        stalled++;
+        if (stalled >= 3) { recoverAudio(true); stalled = 0; lastTime = -1; }
+      } else { stalled = 0; lastTime = ctx.currentTime; }
+    };
+    const wd = setInterval(check, 400);
+    // 앱이 다시 보이거나 화면을 터치하면 곧바로 소생 시도
+    const revive = () => {
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      if (ctx.state !== "running") {
+        unlockSilentAudio();
+        try { ctx.resume().catch(() => {}); } catch (e) {}
+        setTimeout(() => {
+          const c = audioCtxRef.current;
+          if (playingRef.current && c && c.state !== "running") recoverAudio(true);
+        }, 400);
+      }
+    };
+    const onVis = () => { if (document.visibilityState === "visible") revive(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pageshow", revive);
+    window.addEventListener("focus", revive);
+    document.addEventListener("pointerdown", revive, true);
+    document.addEventListener("keydown", revive, true);
+    return () => {
+      clearInterval(wd);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pageshow", revive);
+      window.removeEventListener("focus", revive);
+      document.removeEventListener("pointerdown", revive, true);
+      document.removeEventListener("keydown", revive, true);
+    };
   }, [playing]);
 
   // 재생 중에는 화면이 꺼지지 않도록 Wake Lock 유지 (지원 브라우저 한정, 아이패드 사파리 포함).

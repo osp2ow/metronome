@@ -19,6 +19,8 @@
 
   html, body {
     height: 100%;
+    width: 100%;
+    overflow: hidden; /* 페이지 자체는 절대 스크롤되지 않게 (내부 영역만 스크롤) */
     margin: 0;
     background: #1c1c1c;
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
@@ -27,12 +29,13 @@
   }
 
   #app {
+    position: fixed;
+    top: 0; left: 0; right: 0;
     width: 100%;
-    height: 100dvh;
+    height: var(--app-h, 100dvh); /* JS가 실제 보이는 높이로 계속 갱신 (iOS 복귀 후 dvh 오류 방지) */
     display: flex;
     flex-direction: column;
     background: #1c1c1c;
-    position: relative;
   }
   .metronome-body {
     flex: 1;
@@ -722,6 +725,29 @@
   }
 </script>
 
+<script>
+// 앱을 한참 뒤에 다시 열면 iOS/iPadOS Safari가 뷰포트 높이(dvh)를 잘못 유지해서
+// 화면보다 크게 보이고 아래로 스크롤되는 문제가 있어, 실제 보이는 높이를 직접 재측정해 고정한다
+(function () {
+  function fit() {
+    var vv = window.visualViewport;
+    var h = Math.round((vv && vv.height) || window.innerHeight);
+    if (h > 0) document.documentElement.style.setProperty("--app-h", h + "px");
+    if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  }
+  function fitSoon() { fit(); setTimeout(fit, 150); setTimeout(fit, 500); setTimeout(fit, 1200); }
+  fit();
+  window.addEventListener("resize", fit);
+  window.addEventListener("orientationchange", fitSoon);
+  window.addEventListener("pageshow", fitSoon);
+  window.addEventListener("focus", fitSoon);
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") fitSoon(); });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", fit);
+    window.visualViewport.addEventListener("scroll", fit);
+  }
+})();
+</script>
 <script type="text/babel" data-presets="react">
 const { useState, useRef, useEffect, useCallback } = React;
 
